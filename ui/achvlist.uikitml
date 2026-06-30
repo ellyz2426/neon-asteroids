@@ -1,0 +1,54 @@
+<container name="ach-root" display="none" flexDirection="column" alignItems="center" gap="4" padding="10">
+  <style>
+    .title { fontSize: 20; color: #00ffff; fontWeight: bold; }
+    .counter { fontSize: 12; color: #ffaa00; }
+    .ach-name { fontSize: 11; color: #00ffff; fontWeight: bold; }
+    .ach-desc { fontSize: 9; color: #008888; }
+    .page-text { fontSize: 10; color: #666666; }
+    .nav-btn { fontSize: 11; color: #00aaaa; backgroundColor: #001818; borderRadius: 3; padding: 3; width: 60; textAlign: center; cursor: pointer; }
+    .back-btn { fontSize: 12; color: #ff6644; backgroundColor: #221100; borderRadius: 3; padding: 4; width: 100; textAlign: center; cursor: pointer; }
+    .ach-row { flexDirection: column; gap: 1; width: 100%; }
+  </style>
+  <text class="title">ACHIEVEMENTS</text>
+  <text name="ach-counter" class="counter">0/40 Unlocked</text>
+
+  <container name="ach-row-0" class="ach-row">
+    <text name="ach-name-0" class="ach-name">[ ] ---</text>
+    <text name="ach-desc-0" class="ach-desc">---</text>
+  </container>
+  <container name="ach-row-1" class="ach-row">
+    <text name="ach-name-1" class="ach-name">[ ] ---</text>
+    <text name="ach-desc-1" class="ach-desc">---</text>
+  </container>
+  <container name="ach-row-2" class="ach-row">
+    <text name="ach-name-2" class="ach-name">[ ] ---</text>
+    <text name="ach-desc-2" class="ach-desc">---</text>
+  </container>
+  <container name="ach-row-3" class="ach-row">
+    <text name="ach-name-3" class="ach-name">[ ] ---</text>
+    <text name="ach-desc-3" class="ach-desc">---</text>
+  </container>
+  <container name="ach-row-4" class="ach-row">
+    <text name="ach-name-4" class="ach-name">[ ] ---</text>
+    <text name="ach-desc-4" class="ach-desc">---</text>
+  </container>
+  <container name="ach-row-5" class="ach-row">
+    <text name="ach-name-5" class="ach-name">[ ] ---</text>
+    <text name="ach-desc-5" class="ach-desc">---</text>
+  </container>
+  <container name="ach-row-6" class="ach-row">
+    <text name="ach-name-6" class="ach-name">[ ] ---</text>
+    <text name="ach-desc-6" class="ach-desc">---</text>
+  </container>
+  <container name="ach-row-7" class="ach-row">
+    <text name="ach-name-7" class="ach-name">[ ] ---</text>
+    <text name="ach-desc-7" class="ach-desc">---</text>
+  </container>
+
+  <container flexDirection="row" gap="4" alignItems="center">
+    <text name="btn-prev" class="nav-btn">&lt; Prev</text>
+    <text name="page-info" class="page-text">Page 1/5</text>
+    <text name="btn-next" class="nav-btn">Next &gt;</text>
+  </container>
+  <text name="btn-back" class="back-btn">Back</text>
+</container>

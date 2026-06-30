@@ -1,0 +1,6 @@
+<container name="toast-root" flexDirection="column" alignItems="center">
+  <style>
+    .toast { fontSize: 14; color: #ffdd00; fontWeight: bold; textAlign: center; }
+  </style>
+  <text name="toast-text" class="toast" display="none"></text>
+</container>

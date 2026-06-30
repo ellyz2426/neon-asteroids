@@ -1,0 +1,69 @@
+<container name="menu-root" display="flex" flexDirection="column" alignItems="center" gap="6" padding="12">
+  <style>
+    .title { fontSize: 28; color: #00ffff; fontWeight: bold; }
+    .subtitle { fontSize: 12; color: #008888; }
+    .hs-text { fontSize: 14; color: #ffaa00; }
+    .stats-text { fontSize: 9; color: #666666; }
+    .btn { fontSize: 14; color: #00ffff; backgroundColor: #002222; borderRadius: 4; padding: 6; width: 200; textAlign: center; cursor: pointer; }
+    .btn-small { fontSize: 11; color: #00aaaa; backgroundColor: #001818; borderRadius: 3; padding: 4; width: 160; textAlign: center; cursor: pointer; }
+    .help-text { fontSize: 10; color: #00aaaa; }
+    .lb-text { fontSize: 10; color: #00cccc; }
+    .back-btn { fontSize: 12; color: #ff6644; backgroundColor: #221100; borderRadius: 3; padding: 4; width: 120; textAlign: center; cursor: pointer; }
+    .section-title { fontSize: 16; color: #00ffff; fontWeight: bold; }
+  </style>
+
+  <text class="title">NEON ASTEROIDS</text>
+  <text class="subtitle">Inertia-Based Space Combat</text>
+  <text name="high-score" class="hs-text">High Score: 0</text>
+  <text name="stats" class="stats-text">Games: 0 | Kills: 0 | Best Lvl: 1</text>
+
+  <container name="main-buttons" flexDirection="column" alignItems="center" gap="4">
+    <text name="btn-classic" class="btn">Classic Mode</text>
+    <text name="btn-survival" class="btn">Survival Mode</text>
+    <text name="btn-blitz" class="btn">Blitz Mode (60s)</text>
+    <text name="btn-zen" class="btn">Zen Mode (No Death)</text>
+    <text name="btn-practice" class="btn">Practice</text>
+    <container flexDirection="row" gap="4">
+      <text name="btn-achievements" class="btn-small">Achievements</text>
+      <text name="btn-leaderboard" class="btn-small">Leaderboard</text>
+    </container>
+    <container flexDirection="row" gap="4">
+      <text name="btn-help" class="btn-small">How to Play</text>
+      <text name="btn-theme" class="btn-small">Theme: Neon Holodeck</text>
+    </container>
+  </container>
+
+  <container name="help-panel" flexDirection="column" alignItems="center" gap="4" display="none">
+    <text class="section-title">HOW TO PLAY</text>
+    <text class="help-text">WASD / Arrow Keys - Move ship</text>
+    <text class="help-text">Space / J - Fire</text>
+    <text class="help-text">P / Escape - Pause</text>
+    <text class="help-text">Q (while paused) - Quit to menu</text>
+    <text class="help-text">---</text>
+    <text class="help-text">VR: Left Stick - Turn/Thrust</text>
+    <text class="help-text">VR: Left Trigger - Thrust</text>
+    <text class="help-text">VR: Right Trigger - Fire</text>
+    <text class="help-text">VR: B Button - Pause</text>
+    <text class="help-text">---</text>
+    <text class="help-text">Destroy asteroids for points!</text>
+    <text class="help-text">Large -> Medium -> Small</text>
+    <text class="help-text">Collect power-ups for bonuses</text>
+    <text class="help-text">Build combos for score multiplier</text>
+    <text name="btn-back-menu" class="back-btn">Back</text>
+  </container>
+
+  <container name="lb-panel" flexDirection="column" alignItems="center" gap="3" display="none">
+    <text class="section-title">LEADERBOARD</text>
+    <text name="lb-0" class="lb-text">1. ---</text>
+    <text name="lb-1" class="lb-text">2. ---</text>
+    <text name="lb-2" class="lb-text">3. ---</text>
+    <text name="lb-3" class="lb-text">4. ---</text>
+    <text name="lb-4" class="lb-text">5. ---</text>
+    <text name="lb-5" class="lb-text">6. ---</text>
+    <text name="lb-6" class="lb-text">7. ---</text>
+    <text name="lb-7" class="lb-text">8. ---</text>
+    <text name="lb-8" class="lb-text">9. ---</text>
+    <text name="lb-9" class="lb-text">10. ---</text>
+    <text name="btn-back-menu" class="back-btn">Back</text>
+  </container>
+</container>

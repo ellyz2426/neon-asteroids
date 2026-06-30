@@ -1,0 +1,19 @@
+<container name="hud-root" display="flex" flexDirection="column" alignItems="center" gap="4">
+  <style>
+    .hud-row { flexDirection: row; justifyContent: space-between; width: 100%; }
+    .hud-text { fontSize: 14; color: #00ffff; }
+    .combo-text { fontSize: 16; color: #ffaa00; fontWeight: bold; }
+    .powerup-text { fontSize: 10; color: #44ff44; }
+    .countdown-text { fontSize: 48; color: #ffffff; fontWeight: bold; }
+    .blitz-text { fontSize: 12; color: #ff4444; }
+  </style>
+  <container class="hud-row">
+    <text name="score" class="hud-text">Score: 0</text>
+    <text name="level" class="hud-text">Level 1</text>
+    <text name="lives" class="hud-text">Lives: 3</text>
+  </container>
+  <text name="combo" class="combo-text" display="none">1x Combo!</text>
+  <text name="powerup" class="powerup-text" display="none"></text>
+  <text name="blitz" class="blitz-text" display="none">Time: 60s</text>
+  <text name="countdown" class="countdown-text" display="none">3</text>
+</container>
