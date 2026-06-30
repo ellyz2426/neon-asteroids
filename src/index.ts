@@ -1008,6 +1008,13 @@ async function main() {
   const tv = toastEntity.getVectorView(Follower, 'offsetPosition');
   tv[0] = 0; tv[1] = -0.2; tv[2] = -0.8;
 
+  // Settings panel
+  const settingsEntity = world.createTransformEntity();
+  settingsEntity.addComponent(PanelUI, { config: './ui/settings.json' });
+  settingsEntity.addComponent(Follower, {});
+  const sv = settingsEntity.getVectorView(Follower, 'offsetPosition');
+  sv[0] = 0; sv[1] = 0; sv[2] = -1.2;
+
   // ============================================================
   // ECS SYSTEMS
   // ============================================================
@@ -1017,12 +1024,14 @@ async function main() {
     over: { required: [PanelUI, PanelDocument], where: [eq(PanelUI, 'config', './ui/gameover.json')] },
     ach: { required: [PanelUI, PanelDocument], where: [eq(PanelUI, 'config', './ui/achvlist.json')] },
     toast: { required: [PanelUI, PanelDocument], where: [eq(PanelUI, 'config', './ui/toast.json')] },
+    settings: { required: [PanelUI, PanelDocument], where: [eq(PanelUI, 'config', './ui/settings.json')] },
   }) {
     private hudDoc: UIKitDocument | null = null;
     private menuDoc: UIKitDocument | null = null;
     private overDoc: UIKitDocument | null = null;
     private achDoc: UIKitDocument | null = null;
     private toastDoc: UIKitDocument | null = null;
+    private settingsDoc: UIKitDocument | null = null;
 
     init() {
       this.queries.hud.subscribe('qualify', (entity) => {
@@ -1046,6 +1055,11 @@ async function main() {
 
       this.queries.toast.subscribe('qualify', (entity) => {
         this.toastDoc = PanelDocument.data.document[entity.index] as UIKitDocument;
+      });
+
+      this.queries.settings.subscribe('qualify', (entity) => {
+        this.settingsDoc = PanelDocument.data.document[entity.index] as UIKitDocument;
+        this.wireSettings();
       });
     }
 
@@ -1077,12 +1091,8 @@ async function main() {
       const btnHelp = doc.getElementById('btn-help') as UIKit.Text | undefined;
       btnHelp?.addEventListener('click', () => { game.state = 'help'; });
 
-      const btnTheme = doc.getElementById('btn-theme') as UIKit.Text | undefined;
-      btnTheme?.addEventListener('click', () => {
-        game.currentTheme = (game.currentTheme + 1) % THEMES.length;
-        const t = THEMES[game.currentTheme];
-        btnTheme?.setProperties({ text: `Theme: ${t.name}` });
-      });
+      const btnSettings = doc.getElementById('btn-settings') as UIKit.Text | undefined;
+      btnSettings?.addEventListener('click', () => { game.state = 'settings'; });
     }
 
     wireGameOver() {
@@ -1118,11 +1128,75 @@ async function main() {
       });
     }
 
+    wireSettings() {
+      if (!this.settingsDoc) return;
+      const doc = this.settingsDoc;
+
+      const btnBack = doc.getElementById('btn-back-settings') as UIKit.Text | undefined;
+      btnBack?.addEventListener('click', () => { game.state = 'title'; });
+
+      const skinPrev = doc.getElementById('skin-prev') as UIKit.Text | undefined;
+      skinPrev?.addEventListener('click', () => {
+        game.currentSkin = (game.currentSkin - 1 + SHIP_SKINS.length) % SHIP_SKINS.length;
+      });
+
+      const skinNext = doc.getElementById('skin-next') as UIKit.Text | undefined;
+      skinNext?.addEventListener('click', () => {
+        game.currentSkin = (game.currentSkin + 1) % SHIP_SKINS.length;
+      });
+
+      const themePrev = doc.getElementById('theme-prev') as UIKit.Text | undefined;
+      themePrev?.addEventListener('click', () => {
+        game.currentTheme = (game.currentTheme - 1 + THEMES.length) % THEMES.length;
+      });
+
+      const themeNext = doc.getElementById('theme-next') as UIKit.Text | undefined;
+      themeNext?.addEventListener('click', () => {
+        game.currentTheme = (game.currentTheme + 1) % THEMES.length;
+      });
+    }
+
+    updateSettings() {
+      if (!this.settingsDoc) return;
+      const show = game.state === 'settings';
+
+      const root = this.settingsDoc.getElementById('settings-root') as UIKit.Container | undefined;
+      root?.setProperties({ display: show ? 'flex' : 'none' });
+
+      if (!show) return;
+
+      const skinName = this.settingsDoc.getElementById('skin-name') as UIKit.Text | undefined;
+      skinName?.setProperties({ text: SHIP_SKINS[game.currentSkin].name });
+
+      const skinLock = this.settingsDoc.getElementById('skin-lock') as UIKit.Text | undefined;
+      const unlock = SHIP_SKINS[game.currentSkin].unlock;
+      skinLock?.setProperties({ text: unlock ? `Unlock: ${unlock}` : 'Default', display: 'flex' });
+
+      const themeName = this.settingsDoc.getElementById('theme-name') as UIKit.Text | undefined;
+      themeName?.setProperties({ text: THEMES[game.currentTheme].name });
+
+      // Stats
+      const xpLevel = Math.floor(game.totalKills / 25) + 1;
+      const xpCurrent = game.totalKills % 25;
+      const setText = (id: string, text: string) => {
+        const el = this.settingsDoc?.getElementById(id) as UIKit.Text | undefined;
+        el?.setProperties({ text });
+      };
+      setText('stat-xp', `XP: ${xpCurrent}/25 -- Level ${xpLevel}`);
+      setText('stat-games', `Games Played: ${game.gamesPlayed}`);
+      setText('stat-kills', `Total Kills: ${game.totalKills}`);
+      setText('stat-time', `Play Time: ${Math.floor(game.totalPlayTime / 60)}m`);
+      const acc = game.totalShots > 0 ? Math.round((game.totalHits / game.totalShots) * 100) : 0;
+      setText('stat-accuracy', `Accuracy: ${acc}%`);
+      setText('stat-best', `Best Score: ${game.highScore}`);
+    }
+
     update(delta: number) {
       this.updateHUD();
       this.updateMenuVisibility();
       this.updateGameOver();
       this.updateAchievements();
+      this.updateSettings();
       this.updateToast(delta);
     }
 
@@ -1182,7 +1256,7 @@ async function main() {
 
     updateMenuVisibility() {
       if (!this.menuDoc) return;
-      const showMenu = game.state === 'title' || game.state === 'help' || game.state === 'leaderboard';
+      const showMenu = game.state === 'title' || game.state === 'help' || game.state === 'leaderboard' || game.state === 'settings';
 
       const root = this.menuDoc.getElementById('menu-root') as UIKit.Container | undefined;
       root?.setProperties({ display: showMenu ? 'flex' : 'none' });
@@ -1409,6 +1483,34 @@ async function main() {
         const eMat = engineMesh.material as MeshBasicMaterial;
         eMat.opacity = game.shipThrusting ? 0.8 : 0.2;
         engineMesh.scale.setScalar(game.shipThrusting ? 1.5 : 0.8);
+      }
+
+      // Thruster trail particles
+      if (game.shipThrusting && game.alive && Math.random() < 0.6) {
+        const trailPos = game.shipPos.clone();
+        trailPos.y = 1.5;
+        // Offset behind ship
+        trailPos.x += Math.sin(game.shipAngle) * 0.4;
+        trailPos.z += Math.cos(game.shipAngle) * 0.4;
+
+        const trailColor = new Color(THEMES[game.currentTheme].ship);
+        const size = 0.02 + Math.random() * 0.04;
+        const geo = new BoxGeometry(size, size, size);
+        const mat = new MeshBasicMaterial({ color: trailColor, transparent: true, opacity: 0.7 });
+        const mesh = new Mesh(geo, mat);
+        mesh.position.copy(trailPos);
+        world.scene.add(mesh);
+
+        const vel = new Vector3(
+          Math.sin(game.shipAngle) * (3 + Math.random() * 2) + (Math.random() - 0.5) * 2,
+          (Math.random() - 0.5) * 1,
+          Math.cos(game.shipAngle) * (3 + Math.random() * 2) + (Math.random() - 0.5) * 2
+        );
+        if (particles.filter(p => p.active).length < MAX_PARTICLES) {
+          particles.push({ mesh, velocity: vel, life: 0.3 + Math.random() * 0.2, maxLife: 0.5, active: true });
+        } else {
+          world.scene.remove(mesh);
+        }
       }
 
       // Achievements check
@@ -1727,7 +1829,7 @@ async function main() {
     init() {}
 
     update(delta: number) {
-      if (game.state !== 'pause' && game.state !== 'help' && game.state !== 'leaderboard' && game.state !== 'achievements') return;
+      if (game.state !== 'pause' && game.state !== 'help' && game.state !== 'leaderboard' && game.state !== 'achievements' && game.state !== 'settings') return;
 
       const _input = this.input as unknown as FullInputManager;
       const kb = _input.keyboard;

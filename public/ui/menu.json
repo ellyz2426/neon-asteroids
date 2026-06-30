@@ -168,10 +168,10 @@
                 "sourceTag": "text",
                 "type": "custom",
                 "children": [
-                  "Theme: Neon Holodeck"
+                  "Settings"
                 ],
                 "properties": {
-                  "name": "btn-theme",
+                  "name": "btn-settings",
                   "class": "btn-small"
                 },
                 "dataUid": "uid-17"
@@ -901,7 +901,7 @@
       },
       "end": {
         "line": 31,
-        "column": 74
+        "column": 65
       }
     },
     "uid-18": {

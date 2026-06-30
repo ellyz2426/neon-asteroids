@@ -1,0 +1,39 @@
+<container name="settings-root" display="none" flexDirection="column" alignItems="center" gap="5" padding="10">
+  <style>
+    .title { fontSize: 20; color: #00ffff; fontWeight: bold; }
+    .label { fontSize: 11; color: #00aaaa; }
+    .value { fontSize: 11; color: #00ffff; fontWeight: bold; }
+    .row { flexDirection: row; alignItems: center; gap: 6; }
+    .btn { fontSize: 11; color: #00ffff; backgroundColor: #002222; borderRadius: 3; padding: 3; width: 30; textAlign: center; cursor: pointer; }
+    .skin-name { fontSize: 12; color: #ffaa00; }
+    .skin-lock { fontSize: 9; color: #666666; }
+    .section { fontSize: 14; color: #00cccc; fontWeight: bold; }
+    .back-btn { fontSize: 12; color: #ff6644; backgroundColor: #221100; borderRadius: 3; padding: 4; width: 100; textAlign: center; cursor: pointer; }
+  </style>
+  <text class="title">SETTINGS</text>
+
+  <text class="section">Ship Skin</text>
+  <container class="row">
+    <text name="skin-prev" class="btn">&lt;</text>
+    <text name="skin-name" class="skin-name">Neon Arrow</text>
+    <text name="skin-next" class="btn">&gt;</text>
+  </container>
+  <text name="skin-lock" class="skin-lock"></text>
+
+  <text class="section">Theme</text>
+  <container class="row">
+    <text name="theme-prev" class="btn">&lt;</text>
+    <text name="theme-name" class="value">Neon Holodeck</text>
+    <text name="theme-next" class="btn">&gt;</text>
+  </container>
+
+  <text class="section">Player Stats</text>
+  <text name="stat-xp" class="label">XP: 0 / Level 1</text>
+  <text name="stat-games" class="label">Games Played: 0</text>
+  <text name="stat-kills" class="label">Total Kills: 0</text>
+  <text name="stat-time" class="label">Play Time: 0m</text>
+  <text name="stat-accuracy" class="label">Accuracy: 0%</text>
+  <text name="stat-best" class="label">Best Score: 0</text>
+
+  <text name="btn-back-settings" class="back-btn">Back</text>
+</container>

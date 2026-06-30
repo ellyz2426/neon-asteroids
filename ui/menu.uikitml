@@ -29,7 +29,7 @@
     </container>
     <container flexDirection="row" gap="4">
       <text name="btn-help" class="btn-small">How to Play</text>
-      <text name="btn-theme" class="btn-small">Theme: Neon Holodeck</text>
+      <text name="btn-settings" class="btn-small">Settings</text>
     </container>
   </container>
 
