@@ -13,6 +13,7 @@
     <text name="lives" class="hud-text">Lives: 3</text>
   </container>
   <text name="combo" class="combo-text" display="none">1x Combo!</text>
+  <text name="weapon-tier" class="powerup-text" display="none"></text>
   <text name="powerup" class="powerup-text" display="none"></text>
   <text name="blitz" class="blitz-text" display="none">Time: 60s</text>
   <text name="countdown" class="countdown-text" display="none">3</text>

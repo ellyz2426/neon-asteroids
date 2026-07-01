@@ -67,11 +67,22 @@
         "type": "custom",
         "children": [],
         "properties": {
-          "name": "powerup",
+          "name": "weapon-tier",
           "class": "powerup-text",
           "display": "none"
         },
         "dataUid": "uid-7"
+      },
+      {
+        "sourceTag": "text",
+        "type": "custom",
+        "children": [],
+        "properties": {
+          "name": "powerup",
+          "class": "powerup-text",
+          "display": "none"
+        },
+        "dataUid": "uid-8"
       },
       {
         "sourceTag": "text",
@@ -84,7 +95,7 @@
           "class": "blitz-text",
           "display": "none"
         },
-        "dataUid": "uid-8"
+        "dataUid": "uid-9"
       },
       {
         "sourceTag": "text",
@@ -97,7 +108,7 @@
           "class": "countdown-text",
           "display": "none"
         },
-        "dataUid": "uid-9"
+        "dataUid": "uid-10"
       }
     ],
     "properties": {
@@ -157,7 +168,7 @@
         "column": 0
       },
       "end": {
-        "line": 18,
+        "line": 19,
         "column": 12
       }
     },
@@ -278,7 +289,7 @@
       },
       "end": {
         "line": 15,
-        "column": 66
+        "column": 70
       }
     },
     "uid-8": {
@@ -288,7 +299,7 @@
       },
       "end": {
         "line": 16,
-        "column": 71
+        "column": 66
       }
     },
     "uid-9": {
@@ -298,6 +309,16 @@
       },
       "end": {
         "line": 17,
+        "column": 71
+      }
+    },
+    "uid-10": {
+      "start": {
+        "line": 18,
+        "column": 2
+      },
+      "end": {
+        "line": 18,
         "column": 71
       }
     }

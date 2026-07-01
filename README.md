@@ -1,33 +1,53 @@
 # Neon Asteroids VR
 
-Inertia-based space combat in a holographic arena. Classic asteroids gameplay reimagined for VR with neon holodeck visuals.
+A WebXR arcade shooter built with IWSDK. Pilot a neon wireframe ship through space, destroy asteroids, collect power-ups, and chase high scores across 6 game modes.
+
+## Play
+
+[Play Now](https://ellyz2426.github.io/neon-asteroids/)
 
 ## Features
 
-- **5 Game Modes**: Classic, Survival, Blitz (60s), Zen (no death), Practice
-- **Inertia Physics**: Thrust and drift through space with realistic momentum
-- **Progressive Difficulty**: Asteroids split into smaller fragments, waves get harder
-- **Power-Up System**: Shield, Rapid Fire, Spread Shot, Piercing, Slow Motion, Smart Bomb, Extra Life
-- **Combo System**: Chain kills for score multipliers up to 6x
-- **40 Achievements**: Track your progress across all modes
-- **5 Visual Themes**: Neon Holodeck, Crimson Nebula, Solar Flare, Ultra Violet, Emerald Void
-- **VR + Browser**: Full XR controller support with keyboard/mouse fallback
-- **PanelUI**: All menus and HUD use IWSDK's spatial UI system
+### Core Gameplay
+- **Inertia-based ship movement** — thrust, rotate, drift with momentum and drag
+- **Arena wraparound** — fly off one side, appear on the other
+- **Asteroid splitting** — large -> medium -> small with increasing speed
+- **Boss asteroids** — appear every 5 levels with 12 HP, orbiting rings, and split into 4 large asteroids
+- **Weapon upgrade system** — kills unlock 5 tiers: Dual Shot -> Fast Reload -> Tri-Beam -> Plasma Bolts -> Omega Cannon
 
-## Controls
+### 9 Power-ups
+Shield, Rapid Fire, Spread Shot, Piercing, Slow Motion, Smart Bomb, Extra Life, Homing Missiles, Double Score
 
-### Keyboard
-- WASD / Arrow Keys: Turn and thrust
-- Space / J: Fire
-- P / Escape: Pause
-- Q (while paused): Quit to menu
+### 6 Game Modes
+- **Classic** — wave-based, 3 lives
+- **Survival** — 1 life, increasingly intense waves
+- **Blitz** — 60-second timed high score run
+- **Zen** — no death, infinite lives for relaxed play
+- **Practice** — easy difficulty for learning
+- **Endless** — continuous spawning, no waves, ramps in intensity forever
 
-### VR Controllers
-- Left Thumbstick: Turn and thrust
-- Left Trigger: Thrust
-- Right Trigger: Fire
-- B Button: Pause
+### 4 Difficulty Levels
+Easy (0.5x score), Normal, Hard (1.5x score), Insane (2x score)
 
-## Built with IWSDK
+### 80 Achievements
+Score milestones, level progress, combo chains, boss defeats, mode completions, weapon tier unlocks, and more
 
-Built with the [Immersive Web SDK](https://iwsdk.dev) (IWSDK) - Meta's WebXR development framework.
+### 5 Visual Themes and 8 Ship Skins
+
+### Controls
+
+**Keyboard:** WASD/Arrows (move), Space/J (fire), P/Escape (pause)
+
+**VR Controllers:** Left Stick (turn/thrust), Left Trigger (thrust), Right Trigger (fire), B (pause)
+
+## Technical
+- Built with [IWSDK](https://iwsdk.dev) v0.4.x
+- 9 PanelUI spatial panels
+- ECS architecture with 6 systems
+- XR and browser-first dual runtime
+
+## Development
+```bash
+npm install
+npm run dev
+```

@@ -79,7 +79,7 @@ interface FullInputManager {
 // GAME CONSTANTS & TYPES
 // ============================================================
 type GameState = 'title' | 'mode' | 'difficulty' | 'countdown' | 'playing' | 'pause' | 'gameover' | 'leaderboard' | 'achievements' | 'settings' | 'help' | 'skins';
-type GameMode = 'classic' | 'survival' | 'zen' | 'blitz' | 'practice';
+type GameMode = 'classic' | 'survival' | 'zen' | 'blitz' | 'practice' | 'endless';
 type Difficulty = 'easy' | 'normal' | 'hard' | 'insane';
 type AsteroidSize = 'large' | 'medium' | 'small' | 'boss';
 
@@ -259,6 +259,10 @@ class GameManager {
   livesLostInGame: number = 0;
   powerupTypesCollected: Set<PowerUpType> = new Set();
 
+  // Weapon upgrade system (based on kills in current game)
+  weaponTier: number = 0;
+  killsThisGame: number = 0;
+
   constructor() {
     this.initAchievements();
   }
@@ -332,6 +336,15 @@ class GameManager {
       { id: 'no_thrust', name: 'Drifter', desc: 'Destroy 5 asteroids without thrusting', unlocked: false },
       { id: 'triple_boss', name: 'Boss Rush', desc: 'Defeat 3 bosses in one game', unlocked: false },
       { id: 'one_life', name: 'Flawless', desc: 'Reach Level 15 without losing a life', unlocked: false },
+      { id: 'weapon_tier_3', name: 'Tri-Beam', desc: 'Reach weapon tier 3', unlocked: false },
+      { id: 'weapon_tier_5', name: 'Omega Cannon', desc: 'Reach weapon tier 5 (max)', unlocked: false },
+      { id: 'endless_60', name: 'Endurance', desc: 'Survive 60 seconds in Endless mode', unlocked: false },
+      { id: 'endless_180', name: 'Untiring', desc: 'Survive 180 seconds in Endless mode', unlocked: false },
+      { id: 'endless_300', name: 'Eternal', desc: 'Survive 300 seconds in Endless mode', unlocked: false },
+      { id: 'combo_30', name: 'Combo Fiend', desc: 'Get a 30x combo', unlocked: false },
+      { id: 'multi_kill', name: 'Multi-Kill', desc: 'Destroy 5 asteroids in 1 second', unlocked: false },
+      { id: 'score_1m', name: 'Millionaire', desc: 'Score 1,000,000 points', unlocked: false },
+      { id: 'games_100', name: 'Dedicated', desc: 'Play 100 games', unlocked: false },
     ];
   }
 
@@ -369,7 +382,7 @@ class GameManager {
     if (this.totalKills >= 500) this.unlock('kill_500');
     if (this.totalKills >= 1000) this.unlock('kill_1000');
     if (this.perfectLevels >= 3) this.unlock('perfect_3');
-    if (this.modesPlayed.size >= 5) this.unlock('all_modes');
+    if (this.modesPlayed.size >= 6) this.unlock('all_modes');
     if (this.level >= 50) this.unlock('level_50');
     if (this.bombsUsed >= 3) this.unlock('bomb_3');
     if (this.shieldsUsed >= 5) this.unlock('shields_5');
@@ -391,6 +404,11 @@ class GameManager {
     if (this.bossesInGame >= 3) this.unlock('triple_boss');
     if (this.level >= 15 && this.livesLostInGame === 0) this.unlock('one_life');
     if (this.noThrustKills >= 5) this.unlock('no_thrust');
+    if (this.weaponTier >= 3) this.unlock('weapon_tier_3');
+    if (this.weaponTier >= 5) this.unlock('weapon_tier_5');
+    if (this.combo >= 30) this.unlock('combo_30');
+    if (this.score >= 1000000) this.unlock('score_1m');
+    if (this.gamesPlayed >= 100) this.unlock('games_100');
   }
 
   addScore(base: number, pos?: Vector3) {
@@ -416,13 +434,16 @@ class GameManager {
     // Remove kills older than 5 seconds
     this.recentKillTimes = this.recentKillTimes.filter(t => this.gameTime - t < 5);
     if (this.recentKillTimes.length >= 10) this.unlock('streak_10');
+    // Multi-kill: 5 kills in 1 second
+    const oneSecKills = this.recentKillTimes.filter(t => this.gameTime - t < 1).length;
+    if (oneSecKills >= 5) this.unlock('multi_kill');
 
     this.checkAchievements();
   }
 
   resetGame() {
     this.score = 0;
-    this.lives = this.mode === 'survival' ? 1 : this.mode === 'zen' ? 99 : 3;
+    this.lives = this.mode === 'survival' ? 1 : this.mode === 'zen' ? 99 : this.mode === 'endless' ? 5 : 3;
     this.level = 1;
     this.combo = 0;
     this.maxCombo = 0;
@@ -458,6 +479,8 @@ class GameManager {
     this.lastThrustTime = 0;
     this.livesLostInGame = 0;
     this.powerupTypesCollected = new Set();
+    this.weaponTier = 0;
+    this.killsThisGame = 0;
   }
 
   saveLeaderboard() {
@@ -979,7 +1002,16 @@ async function main() {
     // Score
     game.addScore(ASTEROID_SCORE[ast.size], pos);
     game.totalKills++;
+    game.killsThisGame++;
     game.asteroidsCleared++;
+
+    // Weapon tier upgrades based on kills
+    const newTier = Math.min(Math.floor(game.killsThisGame / 20), 5);
+    if (newTier > game.weaponTier) {
+      game.weaponTier = newTier;
+      const tierNames = ['', 'Dual Shot', 'Fast Reload', 'Tri-Beam', 'Plasma Bolts', 'Omega Cannon'];
+      game.toastQueue.push(`Weapon Upgrade: ${tierNames[newTier]}!`);
+    }
 
     // Speed kill check
     if (game.gameTime - ast.spawnTime < 0.5) {
@@ -1311,6 +1343,9 @@ async function main() {
       const btnPractice = doc.getElementById('btn-practice') as UIKit.Text | undefined;
       btnPractice?.addEventListener('click', () => { game.mode = 'practice'; game.difficulty = 'easy'; startGame(); });
 
+      const btnEndless = doc.getElementById('btn-endless') as UIKit.Text | undefined;
+      btnEndless?.addEventListener('click', () => { game.mode = 'endless'; game.difficulty = 'normal'; startGame(); });
+
       const btnAch = doc.getElementById('btn-achievements') as UIKit.Text | undefined;
       btnAch?.addEventListener('click', () => { game.state = 'achievements'; game.achPage = 0; });
 
@@ -1562,6 +1597,14 @@ async function main() {
         combo?.setProperties({ display: 'none' });
       }
 
+      const weaponTier = this.hudDoc.getElementById('weapon-tier') as UIKit.Text | undefined;
+      if (game.weaponTier > 0) {
+        const tierNames = ['', 'Dual Shot', 'Fast Reload', 'Tri-Beam', 'Plasma Bolts', 'Omega Cannon'];
+        weaponTier?.setProperties({ text: `Weapon: ${tierNames[game.weaponTier]} (${game.weaponTier}/5)`, display: 'flex' });
+      } else {
+        weaponTier?.setProperties({ display: 'none' });
+      }
+
       const powerup = this.hudDoc.getElementById('powerup') as UIKit.Text | undefined;
       const activePowerups: string[] = [];
       if (game.rapidFire) activePowerups.push('RAPID');
@@ -1796,7 +1839,11 @@ async function main() {
       this.updatePowerUpTimers(dt);
 
       // Wave check
-      this.checkWaveComplete(dt);
+      if (game.mode === 'endless') {
+        this.updateEndlessSpawning(dt);
+      } else {
+        this.checkWaveComplete(dt);
+      }
 
       // Blitz timer
       if (game.mode === 'blitz') {
@@ -1876,6 +1923,15 @@ async function main() {
       if (game.mode === 'survival' && this.sessionTime >= 300) {
         game.unlock('survival_300');
       }
+      if (game.mode === 'endless' && this.sessionTime >= 60) {
+        game.unlock('endless_60');
+      }
+      if (game.mode === 'endless' && this.sessionTime >= 180) {
+        game.unlock('endless_180');
+      }
+      if (game.mode === 'endless' && this.sessionTime >= 300) {
+        game.unlock('endless_300');
+      }
       if (game.mode === 'blitz' && game.score >= 5000) {
         game.unlock('blitz_5000');
       }
@@ -1941,7 +1997,9 @@ async function main() {
 
       // Fire
       game.fireTimer -= dt;
-      const fireRate = game.rapidFire ? RAPID_FIRE_RATE : FIRE_RATE;
+      // Weapon tier 2+ gives faster fire rate
+      const tierFireMod = game.weaponTier >= 2 ? 0.8 : 1.0;
+      const fireRate = (game.rapidFire ? RAPID_FIRE_RATE : FIRE_RATE) * tierFireMod;
       const wantFire = kb.getKeyPressed('Space') ||
         right?.getButtonPressed(InputComponent.Trigger) ||
         kb.getKeyPressed('KeyJ');
@@ -1950,10 +2008,21 @@ async function main() {
         game.fireTimer = fireRate;
         const bulletPos = game.shipPos.clone().setY(1.5);
 
-        if (game.spreadShot) {
-          fireBullet(bulletPos, game.shipAngle, -SPREAD_ANGLE);
+        if (game.spreadShot || game.weaponTier >= 3) {
+          // Tri-beam at tier 3+, spread shot power-up stacks
+          const angle = game.spreadShot ? SPREAD_ANGLE : SPREAD_ANGLE * 0.6;
+          fireBullet(bulletPos, game.shipAngle, -angle);
           fireBullet(bulletPos, game.shipAngle, 0);
-          fireBullet(bulletPos, game.shipAngle, SPREAD_ANGLE);
+          fireBullet(bulletPos, game.shipAngle, angle);
+          // Tier 5: add rear shots
+          if (game.weaponTier >= 5) {
+            fireBullet(bulletPos, game.shipAngle + Math.PI, -SPREAD_ANGLE * 0.5);
+            fireBullet(bulletPos, game.shipAngle + Math.PI, SPREAD_ANGLE * 0.5);
+          }
+        } else if (game.weaponTier >= 1) {
+          // Dual shot at tier 1+
+          fireBullet(bulletPos, game.shipAngle, -0.05);
+          fireBullet(bulletPos, game.shipAngle, 0.05);
         } else {
           fireBullet(bulletPos, game.shipAngle, 0);
         }
@@ -2222,6 +2291,39 @@ async function main() {
         }
       } else {
         game.waveDelay = 0;
+      }
+    }
+
+    private endlessSpawnTimer: number = 0;
+    updateEndlessSpawning(dt: number) {
+      // Continuously spawn asteroids with increasing frequency
+      this.endlessSpawnTimer -= dt;
+      const activeCount = asteroids.filter(a => a.active).length;
+      const spawnInterval = Math.max(0.5, 3 - game.gameTime * 0.01); // Gets faster over time
+
+      if (this.endlessSpawnTimer <= 0 && activeCount < MAX_ASTEROIDS) {
+        this.endlessSpawnTimer = spawnInterval;
+
+        // Size gets harder over time
+        const elapsed = game.gameTime;
+        if (elapsed > 120 && Math.random() < 0.05) {
+          spawnAsteroid('boss');
+          game.bossActive = true;
+          game.toastQueue.push('!! BOSS INCOMING !!');
+        } else if (elapsed > 60 && Math.random() < 0.3) {
+          spawnAsteroid('medium');
+        } else {
+          spawnAsteroid('large');
+        }
+
+        // Level up every 30 seconds
+        const newLevel = Math.floor(elapsed / 30) + 1;
+        if (newLevel > game.level) {
+          game.level = newLevel;
+          if (game.level > game.bestLevel) game.bestLevel = game.level;
+          game.toastQueue.push(`Intensity ${game.level}!`);
+          game.checkAchievements();
+        }
       }
     }
   }

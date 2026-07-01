@@ -23,6 +23,7 @@
     <text name="btn-blitz" class="btn">Blitz Mode (60s)</text>
     <text name="btn-zen" class="btn">Zen Mode (No Death)</text>
     <text name="btn-practice" class="btn">Practice</text>
+    <text name="btn-endless" class="btn">Endless Mode</text>
     <container flexDirection="row" gap="4">
       <text name="btn-achievements" class="btn-small">Achievements</text>
       <text name="btn-leaderboard" class="btn-small">Leaderboard</text>
