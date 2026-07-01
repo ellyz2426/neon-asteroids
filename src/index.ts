@@ -80,7 +80,7 @@ interface FullInputManager {
 // ============================================================
 type GameState = 'title' | 'mode' | 'countdown' | 'playing' | 'pause' | 'gameover' | 'leaderboard' | 'achievements' | 'settings' | 'help' | 'skins';
 type GameMode = 'classic' | 'survival' | 'zen' | 'blitz' | 'practice';
-type AsteroidSize = 'large' | 'medium' | 'small';
+type AsteroidSize = 'large' | 'medium' | 'small' | 'boss';
 
 interface AsteroidData {
   mesh: Group;
@@ -88,8 +88,10 @@ interface AsteroidData {
   rotSpeed: Vector3;
   size: AsteroidSize;
   hp: number;
+  maxHp: number;
   radius: number;
   active: boolean;
+  spawnTime: number;
 }
 
 interface BulletData {
@@ -136,10 +138,10 @@ const BULLET_LIFE = 1.8;
 const FIRE_RATE = 0.15;
 const RAPID_FIRE_RATE = 0.06;
 const SPREAD_ANGLE = 0.25;
-const ASTEROID_SPEEDS: Record<AsteroidSize, number> = { large: 3, medium: 5, small: 8 };
-const ASTEROID_RADII: Record<AsteroidSize, number> = { large: 2.2, medium: 1.2, small: 0.6 };
-const ASTEROID_HP: Record<AsteroidSize, number> = { large: 3, medium: 2, small: 1 };
-const ASTEROID_SCORE: Record<AsteroidSize, number> = { large: 20, medium: 50, small: 100 };
+const ASTEROID_SPEEDS: Record<AsteroidSize, number> = { boss: 2, large: 3, medium: 5, small: 8 };
+const ASTEROID_RADII: Record<AsteroidSize, number> = { boss: 3.5, large: 2.2, medium: 1.2, small: 0.6 };
+const ASTEROID_HP: Record<AsteroidSize, number> = { boss: 12, large: 3, medium: 2, small: 1 };
+const ASTEROID_SCORE: Record<AsteroidSize, number> = { boss: 500, large: 20, medium: 50, small: 100 };
 const MAX_ASTEROIDS = 40;
 const MAX_BULLETS = 30;
 const MAX_PARTICLES = 60;
@@ -237,6 +239,17 @@ class GameManager {
   modesPlayed: Set<string> = new Set();
   themesPlayed: Set<number> = new Set();
 
+  // Kill streak tracking
+  recentKillTimes: number[] = [];
+  gameTime: number = 0;
+
+  // Score popup queue
+  scorePopups: { text: string; pos: Vector3; life: number; maxLife: number }[] = [];
+
+  // Boss tracking
+  bossActive: boolean = false;
+  bossesDefeated: number = 0;
+
   constructor() {
     this.initAchievements();
   }
@@ -292,6 +305,15 @@ class GameManager {
       { id: 'max_lives', name: 'Stockpiler', desc: 'Reach 9 lives', unlocked: false },
       { id: 'double_spread', name: 'Bullet Hell', desc: 'Have Rapid Fire + Spread active together', unlocked: false },
       { id: 'marathon', name: 'Marathon Runner', desc: 'Play for 30 minutes total', unlocked: false },
+      { id: 'boss_kill', name: 'Boss Slayer', desc: 'Defeat a boss asteroid', unlocked: false },
+      { id: 'boss_5', name: 'Boss Hunter', desc: 'Defeat 5 boss asteroids', unlocked: false },
+      { id: 'boss_10', name: 'Nemesis', desc: 'Defeat 10 boss asteroids', unlocked: false },
+      { id: 'score_250000', name: 'Quarter Million', desc: 'Score 250,000 points', unlocked: false },
+      { id: 'score_500000', name: 'Half Million', desc: 'Score 500,000 points', unlocked: false },
+      { id: 'kill_5000', name: 'Extinction Event', desc: 'Destroy 5000 asteroids total', unlocked: false },
+      { id: 'combo_100', name: 'Beyond Insane', desc: 'Get a 100x combo', unlocked: false },
+      { id: 'level_100', name: 'Ascended', desc: 'Reach Level 100', unlocked: false },
+      { id: 'survival_300', name: 'Iron Will', desc: 'Survive 300 seconds in Survival mode', unlocked: false },
     ];
   }
 
@@ -337,9 +359,17 @@ class GameManager {
     if (this.rapidFire && this.spreadShot) this.unlock('double_spread');
     if (this.totalPlayTime >= 1800) this.unlock('marathon');
     if (this.themesPlayed.size >= 5) this.unlock('all_themes');
+    if (this.bossesDefeated >= 1) this.unlock('boss_kill');
+    if (this.bossesDefeated >= 5) this.unlock('boss_5');
+    if (this.bossesDefeated >= 10) this.unlock('boss_10');
+    if (this.score >= 250000) this.unlock('score_250000');
+    if (this.score >= 500000) this.unlock('score_500000');
+    if (this.totalKills >= 5000) this.unlock('kill_5000');
+    if (this.combo >= 100) this.unlock('combo_100');
+    if (this.level >= 100) this.unlock('level_100');
   }
 
-  addScore(base: number) {
+  addScore(base: number, pos?: Vector3) {
     const multiplier = 1 + Math.min(this.combo * 0.1, 5);
     const pts = Math.round(base * multiplier);
     this.score += pts;
@@ -347,6 +377,20 @@ class GameManager {
     this.comboTimer = 3;
     if (this.combo > this.maxCombo) this.maxCombo = this.combo;
     if (this.score > this.highScore) this.highScore = this.score;
+
+    // Score popup
+    if (pos) {
+      const popupText = this.combo > 1 ? `+${pts} (${this.combo}x)` : `+${pts}`;
+      this.scorePopups.push({ text: popupText, pos: pos.clone(), life: 1.2, maxLife: 1.2 });
+      if (this.scorePopups.length > 10) this.scorePopups.shift();
+    }
+
+    // Kill streak tracking
+    this.recentKillTimes.push(this.gameTime);
+    // Remove kills older than 5 seconds
+    this.recentKillTimes = this.recentKillTimes.filter(t => this.gameTime - t < 5);
+    if (this.recentKillTimes.length >= 10) this.unlock('streak_10');
+
     this.checkAchievements();
   }
 
@@ -377,6 +421,10 @@ class GameManager {
     this.respawnTimer = 0;
     this.modesPlayed.add(this.mode);
     this.themesPlayed.add(this.currentTheme);
+    this.recentKillTimes = [];
+    this.gameTime = 0;
+    this.scorePopups = [];
+    this.bossActive = false;
   }
 
   saveLeaderboard() {
@@ -397,8 +445,8 @@ class GameManager {
 function createAsteroidMesh(size: AsteroidSize, theme: typeof THEMES[0]): Group {
   const group = new Group();
   const radius = ASTEROID_RADII[size];
-  const detail = size === 'large' ? 1 : size === 'medium' ? 1 : 0;
-  const color = new Color(theme.asteroid);
+  const detail = size === 'boss' ? 2 : size === 'large' ? 1 : size === 'medium' ? 1 : 0;
+  const color = new Color(size === 'boss' ? '#ff2200' : theme.asteroid);
 
   // Main body - irregular icosahedron
   const geo = new IcosahedronGeometry(radius, detail);
@@ -407,18 +455,18 @@ function createAsteroidMesh(size: AsteroidSize, theme: typeof THEMES[0]): Group 
     const x = positions.getX(i);
     const y = positions.getY(i);
     const z = positions.getZ(i);
-    const noise = 1 + (Math.random() - 0.5) * 0.4;
+    const noise = 1 + (Math.random() - 0.5) * (size === 'boss' ? 0.3 : 0.4);
     positions.setXYZ(i, x * noise, y * noise, z * noise);
   }
   geo.computeVertexNormals();
 
   const mat = new MeshStandardMaterial({
     color: color.clone().multiplyScalar(0.15),
-    emissive: color.clone().multiplyScalar(0.1),
+    emissive: color.clone().multiplyScalar(size === 'boss' ? 0.2 : 0.1),
     roughness: 0.9,
     metalness: 0.2,
     transparent: true,
-    opacity: 0.4,
+    opacity: size === 'boss' ? 0.5 : 0.4,
   });
   const body = new Mesh(geo, mat);
   group.add(body);
@@ -428,7 +476,7 @@ function createAsteroidMesh(size: AsteroidSize, theme: typeof THEMES[0]): Group 
   const lineMat = new LineBasicMaterial({
     color: color,
     transparent: true,
-    opacity: 0.8,
+    opacity: size === 'boss' ? 1.0 : 0.8,
   });
   const wireframe = new LineSegments(edges, lineMat);
   group.add(wireframe);
@@ -437,10 +485,32 @@ function createAsteroidMesh(size: AsteroidSize, theme: typeof THEMES[0]): Group 
   const coreMat = new MeshBasicMaterial({
     color: color,
     transparent: true,
-    opacity: 0.08,
+    opacity: size === 'boss' ? 0.15 : 0.08,
   });
   const core = new Mesh(new SphereGeometry(radius * 0.7, 8, 8), coreMat);
   group.add(core);
+
+  // Boss: add orbiting ring
+  if (size === 'boss') {
+    const ringGeo = new TorusGeometry(radius * 1.2, 0.08, 8, 24);
+    const ringMat = new MeshBasicMaterial({
+      color: 0xff4400,
+      transparent: true,
+      opacity: 0.6,
+    });
+    const ring = new Mesh(ringGeo, ringMat);
+    ring.name = 'boss-ring';
+    group.add(ring);
+
+    // Second ring at angle
+    const ring2 = new Mesh(
+      new TorusGeometry(radius * 1.0, 0.06, 8, 20),
+      new MeshBasicMaterial({ color: 0xff8800, transparent: true, opacity: 0.4 })
+    );
+    ring2.rotation.x = Math.PI / 3;
+    ring2.name = 'boss-ring2';
+    group.add(ring2);
+  }
 
   return group;
 }
@@ -763,8 +833,10 @@ async function main() {
       ),
       size,
       hp: ASTEROID_HP[size],
+      maxHp: ASTEROID_HP[size],
       radius,
       active: true,
+      spawnTime: game.gameTime,
     });
   }
 
@@ -779,6 +851,12 @@ async function main() {
       for (let i = 0; i < medCount; i++) {
         setTimeout(() => spawnAsteroid('medium'), (count + i) * 200);
       }
+    }
+    // Boss every 5 levels (starting level 5)
+    if (game.level % 5 === 0 && !game.bossActive) {
+      game.bossActive = true;
+      game.toastQueue.push('!! BOSS INCOMING !!');
+      setTimeout(() => spawnAsteroid('boss'), (count + 3) * 200);
     }
   }
 
@@ -857,19 +935,33 @@ async function main() {
 
   function destroyAsteroid(ast: AsteroidData, bulletPos?: Vector3) {
     const pos = ast.mesh.position.clone();
-    const color = new Color(THEMES[game.currentTheme].asteroid);
+    const color = new Color(ast.size === 'boss' ? '#ff2200' : THEMES[game.currentTheme].asteroid);
 
     // Score
-    game.addScore(ASTEROID_SCORE[ast.size]);
+    game.addScore(ASTEROID_SCORE[ast.size], pos);
     game.totalKills++;
     game.asteroidsCleared++;
 
+    // Speed kill check
+    if (game.gameTime - ast.spawnTime < 0.5) {
+      game.unlock('speed_kill');
+    }
+
     // Explosion
-    const shakeAmt = ast.size === 'large' ? 0.5 : ast.size === 'medium' ? 0.3 : 0.15;
-    spawnExplosion(pos, color, ast.size === 'large' ? 15 : ast.size === 'medium' ? 10 : 6, shakeAmt);
+    const shakeAmt = ast.size === 'boss' ? 1.0 : ast.size === 'large' ? 0.5 : ast.size === 'medium' ? 0.3 : 0.15;
+    const particleCount = ast.size === 'boss' ? 25 : ast.size === 'large' ? 15 : ast.size === 'medium' ? 10 : 6;
+    spawnExplosion(pos, color, particleCount, shakeAmt);
 
     // Split
-    if (ast.size === 'large') {
+    if (ast.size === 'boss') {
+      game.bossesDefeated++;
+      game.bossActive = false;
+      game.toastQueue.push('BOSS DESTROYED!');
+      for (let i = 0; i < 4; i++) {
+        const offset = new Vector3((Math.random() - 0.5) * 3, 0, (Math.random() - 0.5) * 3);
+        spawnAsteroid('large', pos.clone().add(offset));
+      }
+    } else if (ast.size === 'large') {
       for (let i = 0; i < 3; i++) {
         const offset = new Vector3((Math.random() - 0.5) * 2, 0, (Math.random() - 0.5) * 2);
         spawnAsteroid('medium', pos.clone().add(offset));
@@ -932,13 +1024,14 @@ async function main() {
     // Destroy all active asteroids
     for (const ast of asteroids) {
       if (!ast.active) continue;
-      game.addScore(ASTEROID_SCORE[ast.size]);
+      game.addScore(ASTEROID_SCORE[ast.size], ast.mesh.position.clone());
       game.totalKills++;
       game.asteroidsCleared++;
       spawnExplosion(ast.mesh.position.clone(), new Color(THEMES[game.currentTheme].asteroid), 6, 0.15);
       world.scene.remove(ast.mesh);
       ast.active = false;
     }
+    game.bossActive = false;
   }
 
   function collectPowerUp(pu: PowerUpData) {
@@ -1307,10 +1400,15 @@ async function main() {
 
       const activeCount = asteroids.filter(a => a.active).length;
       const countText = this.minimapDoc.getElementById('minimap-count') as UIKit.Text | undefined;
-      countText?.setProperties({ text: `Asteroids: ${activeCount}` });
+      const bossAst = asteroids.find(a => a.active && a.size === 'boss');
+      const countStr = bossAst
+        ? `Asteroids: ${activeCount} [BOSS ${Math.ceil((bossAst.hp / bossAst.maxHp) * 100)}%]`
+        : `Asteroids: ${activeCount}`;
+      countText?.setProperties({ text: countStr });
 
       const waveText = this.minimapDoc.getElementById('minimap-wave') as UIKit.Text | undefined;
-      waveText?.setProperties({ text: `Wave ${game.level}` });
+      const bossLabel = game.level % 5 === 0 ? ' (BOSS)' : '';
+      waveText?.setProperties({ text: `Wave ${game.level}${bossLabel}` });
     }
 
     updatePowerbar() {
@@ -1555,6 +1653,7 @@ async function main() {
 
       this.sessionTime += delta;
       game.totalPlayTime += delta;
+      game.gameTime += delta;
 
       // Input
       this.handleInput(dt);
@@ -1665,6 +1764,9 @@ async function main() {
       // Achievements check
       if (game.mode === 'survival' && this.sessionTime >= 120) {
         game.unlock('survival_120');
+      }
+      if (game.mode === 'survival' && this.sessionTime >= 300) {
+        game.unlock('survival_300');
       }
       if (game.mode === 'blitz' && game.score >= 5000) {
         game.unlock('blitz_5000');
@@ -1806,6 +1908,26 @@ async function main() {
         ast.mesh.rotation.x += ast.rotSpeed.x * dt;
         ast.mesh.rotation.y += ast.rotSpeed.y * dt;
         ast.mesh.rotation.z += ast.rotSpeed.z * dt;
+
+        // Boss ring animation
+        if (ast.size === 'boss') {
+          const ring = ast.mesh.getObjectByName('boss-ring');
+          if (ring) ring.rotation.z += dt * 2;
+          const ring2 = ast.mesh.getObjectByName('boss-ring2');
+          if (ring2) ring2.rotation.y += dt * 1.5;
+
+          // Boss pulsing glow (HP-based)
+          const hpRatio = ast.hp / ast.maxHp;
+          ast.mesh.children.forEach(child => {
+            if (child instanceof Mesh && child.name !== 'boss-ring' && child.name !== 'boss-ring2') {
+              const mat = child.material as MeshStandardMaterial | MeshBasicMaterial;
+              if ('emissive' in mat) {
+                mat.emissive.setHex(hpRatio > 0.5 ? 0xff2200 : hpRatio > 0.25 ? 0xff6600 : 0xffaa00);
+                mat.emissiveIntensity = 0.3 + (1 - hpRatio) * 0.5;
+              }
+            }
+          });
+        }
 
         // Wrap
         wrapPosition(ast.mesh.position);
