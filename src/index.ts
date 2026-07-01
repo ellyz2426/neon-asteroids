@@ -93,6 +93,8 @@ interface AsteroidData {
   radius: number;
   active: boolean;
   spawnTime: number;
+  zigzagPhase: number;
+  zigzagAmplitude: number;
 }
 
 interface BulletData {
@@ -263,7 +265,10 @@ class GameManager {
   weaponTier: number = 0;
   killsThisGame: number = 0;
 
-  // Skin unlock tracking
+  // Track chain kills for triple_split achievement
+  chainTracker: { parentSize: AsteroidSize; fragments: number; kills: number }[] = [];
+  // Shield burst — when shield breaks, damage nearby asteroids
+  shieldBurstKills: number = 0;
   unlockedSkins: Set<number> = new Set([0]); // Index 0 always unlocked
 
   constructor() {
@@ -988,6 +993,8 @@ async function main() {
       radius,
       active: true,
       spawnTime: game.gameTime,
+      zigzagPhase: Math.random() * Math.PI * 2,
+      zigzagAmplitude: (game.level >= 8 && size === 'medium') ? 2 + Math.random() * 2 : 0,
     });
   }
 
@@ -1176,6 +1183,8 @@ async function main() {
         spawnAsteroid('large', pos.clone().add(offset));
       }
     } else if (ast.size === 'large') {
+      // Track for triple_split achievement
+      game.chainTracker.push({ parentSize: 'large', fragments: 3 + 6, kills: 0 });
       for (let i = 0; i < 3; i++) {
         const offset = new Vector3((Math.random() - 0.5) * 2, 0, (Math.random() - 0.5) * 2);
         spawnAsteroid('medium', pos.clone().add(offset));
@@ -1185,7 +1194,23 @@ async function main() {
         const offset = new Vector3((Math.random() - 0.5) * 1.5, 0, (Math.random() - 0.5) * 1.5);
         spawnAsteroid('small', pos.clone().add(offset));
       }
+      // Update chain trackers
+      for (const chain of game.chainTracker) {
+        chain.kills++;
+        chain.fragments--;
+      }
+    } else if (ast.size === 'small') {
+      // Update chain trackers
+      for (const chain of game.chainTracker) {
+        chain.kills++;
+        chain.fragments--;
+        if (chain.fragments <= 0 && chain.kills >= 9) {
+          game.unlock('triple_split');
+        }
+      }
     }
+    // Clean old chain trackers
+    game.chainTracker = game.chainTracker.filter(c => c.fragments > 0);
 
     // Power-up chance
     spawnPowerUp(pos);
@@ -1202,8 +1227,31 @@ async function main() {
       game.shieldActive = false;
       game.powerUpTimers.delete('shield');
       game.unlock('shield_save');
-      game.toastQueue.push('Shield destroyed!');
-      spawnExplosion(game.shipPos.clone().setY(1.5), new Color(0x00ff88), 12, 0.4);
+      game.toastQueue.push('Shield burst!');
+
+      // Shield burst — damage all asteroids within radius
+      const burstRadius = 4;
+      const burstPos = game.shipPos.clone().setY(1.5);
+      const burstKillsBefore = game.totalKills;
+      for (const ast of asteroids) {
+        if (!ast.active) continue;
+        const d = burstPos.distanceTo(ast.mesh.position);
+        if (d < burstRadius) {
+          ast.hp -= 2;
+          if (ast.hp <= 0) {
+            destroyAsteroid(ast);
+          } else {
+            spawnExplosion(ast.mesh.position.clone(), new Color(0x00ff88), 4, 0.1);
+          }
+        }
+      }
+      const burstKills = game.totalKills - burstKillsBefore;
+      game.shieldBurstKills += burstKills;
+      if (burstKills >= 3) {
+        game.toastQueue.push(`Shield burst x${burstKills}!`);
+      }
+
+      spawnExplosion(burstPos, new Color(0x00ff88), 15, 0.5);
       game.invulnTimer = 1;
       return;
     }
@@ -1462,6 +1510,29 @@ async function main() {
       active: true,
       startPos: pos.clone(),
     });
+  }
+
+  // Level-up flash effect
+  let levelFlash: { mesh: Mesh; timer: number } | null = null;
+
+  function triggerLevelFlash() {
+    if (levelFlash && levelFlash.mesh.parent) {
+      world.scene.remove(levelFlash.mesh);
+    }
+    const geo = new PlaneGeometry(80, 60);
+    const mat = new MeshBasicMaterial({
+      color: new Color(THEMES[game.currentTheme].accent),
+      transparent: true,
+      opacity: 0.15,
+      side: DoubleSide,
+      blending: AdditiveBlending,
+      depthTest: false,
+    });
+    const mesh = new Mesh(geo, mat);
+    mesh.position.copy(world.camera.position);
+    mesh.position.y = 1.5;
+    world.scene.add(mesh);
+    levelFlash = { mesh, timer: 0.3 };
   }
 
   // Screen shake state
@@ -1748,6 +1819,32 @@ async function main() {
       const waveText = this.minimapDoc.getElementById('minimap-wave') as UIKit.Text | undefined;
       const bossLabel = game.level % 5 === 0 ? ' (BOSS)' : '';
       waveText?.setProperties({ text: `Wave ${game.level}${bossLabel}` });
+
+      // Nearest asteroid direction
+      const nearestEl = this.minimapDoc.getElementById('minimap-nearest') as UIKit.Text | undefined;
+      let nearestDist = Infinity;
+      let nearestDir = '';
+      for (const ast of asteroids) {
+        if (!ast.active) continue;
+        const dx = ast.mesh.position.x - game.shipPos.x;
+        const dz = ast.mesh.position.z - game.shipPos.z;
+        const d = Math.sqrt(dx * dx + dz * dz);
+        if (d < nearestDist) {
+          nearestDist = d;
+          const angle = Math.atan2(dx, dz) * (180 / Math.PI);
+          const dirs = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+          const idx = Math.round(((angle + 360) % 360) / 45) % 8;
+          nearestDir = dirs[idx];
+        }
+      }
+      if (nearestDist < Infinity) {
+        nearestEl?.setProperties({
+          text: `Nearest: ${nearestDir} ${Math.round(nearestDist)}m`,
+          display: 'flex',
+        });
+      } else {
+        nearestEl?.setProperties({ display: 'none' });
+      }
     }
 
     updatePowerbar() {
@@ -1804,6 +1901,23 @@ async function main() {
 
       const level = this.hudDoc.getElementById('level') as UIKit.Text | undefined;
       level?.setProperties({ text: `Level ${game.level}` });
+
+      // Kill counter
+      const kills = this.hudDoc.getElementById('kills') as UIKit.Text | undefined;
+      kills?.setProperties({ text: `Kills: ${game.asteroidsCleared}` });
+
+      // Weapon upgrade progress
+      const wpProg = this.hudDoc.getElementById('wp-progress') as UIKit.Text | undefined;
+      if (game.weaponTier < 5) {
+        const nextTierKills = (game.weaponTier + 1) * 20;
+        const current = game.killsThisGame;
+        wpProg?.setProperties({
+          text: `Next upgrade: ${current}/${nextTierKills} kills`,
+          display: 'flex',
+        });
+      } else {
+        wpProg?.setProperties({ text: 'MAX WEAPON', display: 'flex' });
+      }
 
       const combo = this.hudDoc.getElementById('combo') as UIKit.Text | undefined;
       if (game.combo > 1) {
@@ -2015,6 +2129,7 @@ async function main() {
     private levelDamageTaken: boolean = false;
     private sessionTime: number = 0;
     private waveStartTime: number = 0;
+    private autoSaveTimer: number = 30;
 
     init() {}
 
@@ -2093,6 +2208,13 @@ async function main() {
         if (game.respawnTimer <= 0) {
           shipGroup.visible = true;
         }
+      }
+
+      // Auto-save every 30 seconds
+      this.autoSaveTimer -= delta;
+      if (this.autoSaveTimer <= 0) {
+        this.autoSaveTimer = 30;
+        game.save();
       }
 
       // Invuln flicker
@@ -2335,6 +2457,20 @@ async function main() {
         if (!ast.active) continue;
 
         ast.mesh.position.add(ast.velocity.clone().multiplyScalar(dt));
+
+        // Zigzag movement for medium asteroids at higher levels
+        if (ast.zigzagAmplitude > 0) {
+          ast.zigzagPhase += dt * 3;
+          const perpX = -ast.velocity.z;
+          const perpZ = ast.velocity.x;
+          const perpLen = Math.sqrt(perpX * perpX + perpZ * perpZ);
+          if (perpLen > 0) {
+            const zigOffset = Math.sin(ast.zigzagPhase) * ast.zigzagAmplitude * dt;
+            ast.mesh.position.x += (perpX / perpLen) * zigOffset;
+            ast.mesh.position.z += (perpZ / perpLen) * zigOffset;
+          }
+        }
+
         ast.mesh.rotation.x += ast.rotSpeed.x * dt;
         ast.mesh.rotation.y += ast.rotSpeed.y * dt;
         ast.mesh.rotation.z += ast.rotSpeed.z * dt;
@@ -2555,6 +2691,7 @@ async function main() {
           this.levelHitsAtStart = game.totalHits;
           this.levelDamageTaken = false;
           game.toastQueue.push(`Level ${game.level}!`);
+          triggerLevelFlash();
           // Check no_powerup achievement
           if (game.level >= 5 && game.powerupTypesCollected.size === 0) {
             game.unlock('no_powerup');
@@ -2740,6 +2877,19 @@ async function main() {
       // Clean up dead popups
       while (scorePopupVisuals.length > 0 && !scorePopupVisuals[0].active) {
         scorePopupVisuals.shift();
+      }
+
+      // Level-up flash effect
+      if (levelFlash) {
+        levelFlash.timer -= delta;
+        if (levelFlash.timer <= 0) {
+          world.scene.remove(levelFlash.mesh);
+          levelFlash = null;
+        } else {
+          const alpha = levelFlash.timer / 0.3;
+          (levelFlash.mesh.material as MeshBasicMaterial).opacity = alpha * 0.15;
+          levelFlash.mesh.lookAt(world.camera.position);
+        }
       }
     }
   }

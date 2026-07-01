@@ -2,6 +2,8 @@
   <style>
     .hud-row { flexDirection: row; justifyContent: space-between; width: 100%; }
     .hud-text { fontSize: 14; color: #00ffff; }
+    .kill-text { fontSize: 10; color: #888888; }
+    .wp-text { fontSize: 10; color: #ffaa00; }
     .combo-text { fontSize: 16; color: #ffaa00; fontWeight: bold; }
     .powerup-text { fontSize: 10; color: #44ff44; }
     .countdown-text { fontSize: 48; color: #ffffff; fontWeight: bold; }
@@ -11,6 +13,10 @@
     <text name="score" class="hud-text">Score: 0</text>
     <text name="level" class="hud-text">Level 1</text>
     <text name="lives" class="hud-text">Lives: 3</text>
+  </container>
+  <container class="hud-row">
+    <text name="kills" class="kill-text">Kills: 0</text>
+    <text name="wp-progress" class="wp-text" display="none"></text>
   </container>
   <text name="combo" class="combo-text" display="none">1x Combo!</text>
   <text name="weapon-tier" class="powerup-text" display="none"></text>

@@ -2,8 +2,10 @@
   <style>
     .minimap-title { fontSize: 8; color: #004444; }
     .minimap-info { fontSize: 7; color: #006666; }
+    .minimap-nearest { fontSize: 7; color: #00aaaa; }
   </style>
   <text name="minimap-label" class="minimap-title">RADAR</text>
   <text name="minimap-count" class="minimap-info">Asteroids: 0</text>
   <text name="minimap-wave" class="minimap-info">Wave 1</text>
+  <text name="minimap-nearest" class="minimap-nearest" display="none"></text>
 </container>
