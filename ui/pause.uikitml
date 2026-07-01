@@ -1,0 +1,17 @@
+<container name="pause-root" display="none" flexDirection="column" alignItems="center" gap="6" padding="12">
+  <style>
+    .title { fontSize: 24; color: #00ffff; fontWeight: bold; }
+    .subtitle { fontSize: 12; color: #008888; }
+    .btn { fontSize: 14; color: #00ffff; backgroundColor: #002222; borderRadius: 4; padding: 6; width: 180; textAlign: center; cursor: pointer; }
+    .btn-quit { fontSize: 14; color: #ff6644; backgroundColor: #221100; borderRadius: 4; padding: 6; width: 180; textAlign: center; cursor: pointer; }
+    .info-text { fontSize: 10; color: #006666; }
+  </style>
+  <text class="title">PAUSED</text>
+  <text class="subtitle">Game is paused</text>
+  <text name="pause-score" class="info-text">Score: 0</text>
+  <text name="pause-level" class="info-text">Level: 1</text>
+  <text name="btn-resume" class="btn">Resume</text>
+  <text name="btn-restart-pause" class="btn">Restart</text>
+  <text name="btn-quit-pause" class="btn-quit">Quit to Menu</text>
+  <text class="info-text">P / Esc / B to Resume</text>
+</container>

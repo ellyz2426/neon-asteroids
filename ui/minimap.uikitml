@@ -1,0 +1,9 @@
+<container name="minimap-root" display="flex" flexDirection="column" alignItems="center" gap="2">
+  <style>
+    .minimap-title { fontSize: 8; color: #004444; }
+    .minimap-info { fontSize: 7; color: #006666; }
+  </style>
+  <text name="minimap-label" class="minimap-title">RADAR</text>
+  <text name="minimap-count" class="minimap-info">Asteroids: 0</text>
+  <text name="minimap-wave" class="minimap-info">Wave 1</text>
+</container>

@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "sessionId": "868d0e5a-000f-4e56-9968-2c91736ef715",
+  "workspaceRoot": "/home/hatch/workspace/neon-asteroids",
+  "pid": 17447,
+  "port": 5173,
+  "localUrl": "http://localhost:5173/",
+  "networkUrls": [
+    "http://198.19.0.2:5173/"
+  ],
+  "aiMode": "agent",
+  "aiTools": [
+    "claude"
+  ],
+  "browser": {
+    "status": "connected",
+    "connected": true,
+    "connectedClientCount": 1,
+    "lastTransitionAt": "2026-07-01T01:04:31.311Z"
+  },
+  "registeredAt": "2026-07-01T00:58:58.547Z",
+  "updatedAt": "2026-07-01T01:04:31.315Z"
+}

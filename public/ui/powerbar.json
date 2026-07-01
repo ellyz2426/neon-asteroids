@@ -1,0 +1,168 @@
+{
+  "element": {
+    "sourceTag": "container",
+    "type": "custom",
+    "children": [
+      {
+        "sourceTag": "text",
+        "type": "custom",
+        "children": [],
+        "properties": {
+          "name": "power-0",
+          "class": "bar-label",
+          "display": "none"
+        },
+        "dataUid": "uid-2"
+      },
+      {
+        "sourceTag": "text",
+        "type": "custom",
+        "children": [],
+        "properties": {
+          "name": "power-1",
+          "class": "bar-label",
+          "display": "none"
+        },
+        "dataUid": "uid-3"
+      },
+      {
+        "sourceTag": "text",
+        "type": "custom",
+        "children": [],
+        "properties": {
+          "name": "power-2",
+          "class": "bar-label",
+          "display": "none"
+        },
+        "dataUid": "uid-4"
+      },
+      {
+        "sourceTag": "text",
+        "type": "custom",
+        "children": [],
+        "properties": {
+          "name": "power-3",
+          "class": "bar-label",
+          "display": "none"
+        },
+        "dataUid": "uid-5"
+      },
+      {
+        "sourceTag": "text",
+        "type": "custom",
+        "children": [],
+        "properties": {
+          "name": "power-4",
+          "class": "bar-label",
+          "display": "none"
+        },
+        "dataUid": "uid-6"
+      }
+    ],
+    "properties": {
+      "name": "powerbar-root",
+      "display": "none",
+      "flexdirection": "column",
+      "alignitems": "center",
+      "gap": "1"
+    },
+    "dataUid": "uid-1"
+  },
+  "classes": {
+    "bar-label": {
+      "content": {
+        "fontSize": "8",
+        "color": "#44ff44"
+      }
+    },
+    "bar-timer": {
+      "content": {
+        "fontSize": "8",
+        "color": "#ffaa00",
+        "fontWeight": "bold"
+      }
+    }
+  },
+  "ranges": {
+    "uid-1": {
+      "start": {
+        "line": 0,
+        "column": 0
+      },
+      "end": {
+        "line": 10,
+        "column": 12
+      }
+    },
+    "bar-label": {
+      "start": {
+        "line": 2,
+        "column": 4
+      },
+      "end": {
+        "line": 2,
+        "column": 14
+      }
+    },
+    "bar-timer": {
+      "start": {
+        "line": 3,
+        "column": 4
+      },
+      "end": {
+        "line": 3,
+        "column": 14
+      }
+    },
+    "uid-2": {
+      "start": {
+        "line": 5,
+        "column": 2
+      },
+      "end": {
+        "line": 5,
+        "column": 63
+      }
+    },
+    "uid-3": {
+      "start": {
+        "line": 6,
+        "column": 2
+      },
+      "end": {
+        "line": 6,
+        "column": 63
+      }
+    },
+    "uid-4": {
+      "start": {
+        "line": 7,
+        "column": 2
+      },
+      "end": {
+        "line": 7,
+        "column": 63
+      }
+    },
+    "uid-5": {
+      "start": {
+        "line": 8,
+        "column": 2
+      },
+      "end": {
+        "line": 8,
+        "column": 63
+      }
+    },
+    "uid-6": {
+      "start": {
+        "line": 9,
+        "column": 2
+      },
+      "end": {
+        "line": 9,
+        "column": 63
+      }
+    }
+  }
+}

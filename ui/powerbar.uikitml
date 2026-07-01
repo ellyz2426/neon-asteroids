@@ -1,0 +1,11 @@
+<container name="powerbar-root" display="none" flexDirection="column" alignItems="center" gap="1">
+  <style>
+    .bar-label { fontSize: 8; color: #44ff44; }
+    .bar-timer { fontSize: 8; color: #ffaa00; fontWeight: bold; }
+  </style>
+  <text name="power-0" class="bar-label" display="none"></text>
+  <text name="power-1" class="bar-label" display="none"></text>
+  <text name="power-2" class="bar-label" display="none"></text>
+  <text name="power-3" class="bar-label" display="none"></text>
+  <text name="power-4" class="bar-label" display="none"></text>
+</container>

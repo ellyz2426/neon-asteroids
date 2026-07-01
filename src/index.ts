@@ -235,6 +235,7 @@ class GameManager {
   slowTimer: number = 0;
 
   modesPlayed: Set<string> = new Set();
+  themesPlayed: Set<number> = new Set();
 
   constructor() {
     this.initAchievements();
@@ -282,6 +283,15 @@ class GameManager {
       { id: 'triple_split', name: 'Chain Splitter', desc: 'Destroy a large asteroid and all fragments', unlocked: false },
       { id: 'bounce_shot', name: 'Ricochet', desc: 'Hit asteroid near arena edge', unlocked: false },
       { id: 'speed_kill', name: 'Quick Draw', desc: 'Destroy asteroid within 0.5s of spawn', unlocked: false },
+      { id: 'level_50', name: 'Endless Void', desc: 'Reach Level 50', unlocked: false },
+      { id: 'bomb_3', name: 'Demolition Expert', desc: 'Use 3 Smart Bombs in one game', unlocked: false },
+      { id: 'shields_5', name: 'Barrier Master', desc: 'Use 5 shields in one game', unlocked: false },
+      { id: 'streak_10', name: 'Kill Streak', desc: 'Destroy 10 asteroids in 5 seconds', unlocked: false },
+      { id: 'no_powerup', name: 'Purist', desc: 'Reach Level 5 without collecting powerups', unlocked: false },
+      { id: 'all_themes', name: 'Fashionista', desc: 'Play in all 5 visual themes', unlocked: false },
+      { id: 'max_lives', name: 'Stockpiler', desc: 'Reach 9 lives', unlocked: false },
+      { id: 'double_spread', name: 'Bullet Hell', desc: 'Have Rapid Fire + Spread active together', unlocked: false },
+      { id: 'marathon', name: 'Marathon Runner', desc: 'Play for 30 minutes total', unlocked: false },
     ];
   }
 
@@ -320,6 +330,13 @@ class GameManager {
     if (this.totalKills >= 1000) this.unlock('kill_1000');
     if (this.perfectLevels >= 3) this.unlock('perfect_3');
     if (this.modesPlayed.size >= 5) this.unlock('all_modes');
+    if (this.level >= 50) this.unlock('level_50');
+    if (this.bombsUsed >= 3) this.unlock('bomb_3');
+    if (this.shieldsUsed >= 5) this.unlock('shields_5');
+    if (this.lives >= 9) this.unlock('max_lives');
+    if (this.rapidFire && this.spreadShot) this.unlock('double_spread');
+    if (this.totalPlayTime >= 1800) this.unlock('marathon');
+    if (this.themesPlayed.size >= 5) this.unlock('all_themes');
   }
 
   addScore(base: number) {
@@ -359,6 +376,7 @@ class GameManager {
     this.sessionStart = 0;
     this.respawnTimer = 0;
     this.modesPlayed.add(this.mode);
+    this.themesPlayed.add(this.currentTheme);
   }
 
   saveLeaderboard() {
@@ -545,7 +563,7 @@ function createPowerUpMesh(type: PowerUpType): Group {
 // ============================================================
 // ENVIRONMENT BUILDER
 // ============================================================
-function buildEnvironment(scene: Object3D, theme: typeof THEMES[0]) {
+function buildEnvironment(scene: Object3D, theme: typeof THEMES[0]): Points {
   // Cast to Scene for fog/background access
   const s = scene as any;
   s.fog = new FogExp2(new Color(theme.fog).getHex(), 0.02);
@@ -630,9 +648,10 @@ function buildEnvironment(scene: Object3D, theme: typeof THEMES[0]) {
     }
   }
 
-  // Star field
+  // Star field (animated)
   const starCount = 600;
   const starPositions = new Float32Array(starCount * 3);
+  const starVelocities: number[] = [];
   for (let i = 0; i < starCount; i++) {
     const theta = Math.random() * Math.PI * 2;
     const phi = Math.random() * Math.PI;
@@ -640,6 +659,7 @@ function buildEnvironment(scene: Object3D, theme: typeof THEMES[0]) {
     starPositions[i * 3] = r * Math.sin(phi) * Math.cos(theta);
     starPositions[i * 3 + 1] = r * Math.cos(phi);
     starPositions[i * 3 + 2] = r * Math.sin(phi) * Math.sin(theta);
+    starVelocities.push((Math.random() - 0.5) * 0.02);
   }
   const starGeo = new BufferGeometry();
   starGeo.setAttribute('position', new Float32BufferAttribute(starPositions, 3));
@@ -650,7 +670,10 @@ function buildEnvironment(scene: Object3D, theme: typeof THEMES[0]) {
     opacity: 0.6,
     blending: AdditiveBlending,
   });
-  scene.add(new Points(starGeo, starMat));
+  const starField = new Points(starGeo, starMat);
+  scene.add(starField);
+
+  return starField;
 }
 
 // ============================================================
@@ -661,6 +684,7 @@ async function main() {
 
   const world = await World.create(container, {
     xr: { offer: 'once' },
+    browserControls: true,
     render: {
       defaultLighting: false,
       camera: { position: [0, 12, 8], lookAt: [0, 1.5, 0] },
@@ -676,7 +700,7 @@ async function main() {
   const theme = THEMES[game.currentTheme];
 
   // Build environment
-  buildEnvironment(world.scene, theme);
+  const starField = buildEnvironment(world.scene, theme);
 
   // Ship mesh
   const shipGroup = createShipMesh(SHIP_SKINS[game.currentSkin]);
@@ -778,7 +802,10 @@ async function main() {
     game.totalShots++;
   }
 
-  function spawnExplosion(pos: Vector3, color: Color, count: number = 8) {
+  function spawnExplosion(pos: Vector3, color: Color, count: number = 8, shakeAmount: number = 0.3) {
+    // Trigger screen shake
+    shakeState.intensity = Math.max(shakeState.intensity, shakeAmount);
+
     for (let i = 0; i < count && particles.filter(p => p.active).length < MAX_PARTICLES; i++) {
       const size = 0.03 + Math.random() * 0.06;
       const geo = new BoxGeometry(size, size, size);
@@ -838,7 +865,8 @@ async function main() {
     game.asteroidsCleared++;
 
     // Explosion
-    spawnExplosion(pos, color, ast.size === 'large' ? 15 : ast.size === 'medium' ? 10 : 6);
+    const shakeAmt = ast.size === 'large' ? 0.5 : ast.size === 'medium' ? 0.3 : 0.15;
+    spawnExplosion(pos, color, ast.size === 'large' ? 15 : ast.size === 'medium' ? 10 : 6, shakeAmt);
 
     // Split
     if (ast.size === 'large') {
@@ -869,7 +897,7 @@ async function main() {
       game.powerUpTimers.delete('shield');
       game.unlock('shield_save');
       game.toastQueue.push('Shield destroyed!');
-      spawnExplosion(game.shipPos.clone().setY(1.5), new Color(0x00ff88), 12);
+      spawnExplosion(game.shipPos.clone().setY(1.5), new Color(0x00ff88), 12, 0.4);
       game.invulnTimer = 1;
       return;
     }
@@ -877,7 +905,7 @@ async function main() {
     game.lives--;
     game.combo = 0;
     game.comboTimer = 0;
-    spawnExplosion(game.shipPos.clone().setY(1.5), new Color(THEMES[game.currentTheme].ship), 20);
+    spawnExplosion(game.shipPos.clone().setY(1.5), new Color(THEMES[game.currentTheme].ship), 20, 0.8);
 
     if (game.lives <= 0) {
       game.alive = false;
@@ -907,7 +935,7 @@ async function main() {
       game.addScore(ASTEROID_SCORE[ast.size]);
       game.totalKills++;
       game.asteroidsCleared++;
-      spawnExplosion(ast.mesh.position.clone(), new Color(THEMES[game.currentTheme].asteroid), 6);
+      spawnExplosion(ast.mesh.position.clone(), new Color(THEMES[game.currentTheme].asteroid), 6, 0.15);
       world.scene.remove(ast.mesh);
       ast.active = false;
     }
@@ -919,6 +947,7 @@ async function main() {
     switch (pu.type) {
       case 'shield':
         game.shieldActive = true;
+        game.shieldsUsed++;
         game.powerUpTimers.set('shield', SHIELD_DURATION);
         game.toastQueue.push('Shield Active!');
         break;
@@ -1015,6 +1044,30 @@ async function main() {
   const sv = settingsEntity.getVectorView(Follower, 'offsetPosition');
   sv[0] = 0; sv[1] = 0; sv[2] = -1.2;
 
+  // Pause panel
+  const pauseEntity = world.createTransformEntity();
+  pauseEntity.addComponent(PanelUI, { config: './ui/pause.json' });
+  pauseEntity.addComponent(Follower, {});
+  const pv = pauseEntity.getVectorView(Follower, 'offsetPosition');
+  pv[0] = 0; pv[1] = 0; pv[2] = -1.2;
+
+  // Minimap panel (positioned top-right of view)
+  const minimapEntity = world.createTransformEntity();
+  minimapEntity.addComponent(PanelUI, { config: './ui/minimap.json' });
+  minimapEntity.addComponent(Follower, {});
+  const mmv = minimapEntity.getVectorView(Follower, 'offsetPosition');
+  mmv[0] = 0.35; mmv[1] = 0.15; mmv[2] = -0.8;
+
+  // Powerbar panel (positioned bottom of HUD)
+  const powerbarEntity = world.createTransformEntity();
+  powerbarEntity.addComponent(PanelUI, { config: './ui/powerbar.json' });
+  powerbarEntity.addComponent(Follower, {});
+  const pbv = powerbarEntity.getVectorView(Follower, 'offsetPosition');
+  pbv[0] = 0; pbv[1] = -0.15; pbv[2] = -0.8;
+
+  // Screen shake state
+  const shakeState = { intensity: 0, decay: 0.92 };
+
   // ============================================================
   // ECS SYSTEMS
   // ============================================================
@@ -1025,6 +1078,9 @@ async function main() {
     ach: { required: [PanelUI, PanelDocument], where: [eq(PanelUI, 'config', './ui/achvlist.json')] },
     toast: { required: [PanelUI, PanelDocument], where: [eq(PanelUI, 'config', './ui/toast.json')] },
     settings: { required: [PanelUI, PanelDocument], where: [eq(PanelUI, 'config', './ui/settings.json')] },
+    pause: { required: [PanelUI, PanelDocument], where: [eq(PanelUI, 'config', './ui/pause.json')] },
+    minimap: { required: [PanelUI, PanelDocument], where: [eq(PanelUI, 'config', './ui/minimap.json')] },
+    powerbar: { required: [PanelUI, PanelDocument], where: [eq(PanelUI, 'config', './ui/powerbar.json')] },
   }) {
     private hudDoc: UIKitDocument | null = null;
     private menuDoc: UIKitDocument | null = null;
@@ -1032,6 +1088,9 @@ async function main() {
     private achDoc: UIKitDocument | null = null;
     private toastDoc: UIKitDocument | null = null;
     private settingsDoc: UIKitDocument | null = null;
+    private pauseDoc: UIKitDocument | null = null;
+    private minimapDoc: UIKitDocument | null = null;
+    private powerbarDoc: UIKitDocument | null = null;
 
     init() {
       this.queries.hud.subscribe('qualify', (entity) => {
@@ -1060,6 +1119,19 @@ async function main() {
       this.queries.settings.subscribe('qualify', (entity) => {
         this.settingsDoc = PanelDocument.data.document[entity.index] as UIKitDocument;
         this.wireSettings();
+      });
+
+      this.queries.pause.subscribe('qualify', (entity) => {
+        this.pauseDoc = PanelDocument.data.document[entity.index] as UIKitDocument;
+        this.wirePause();
+      });
+
+      this.queries.minimap.subscribe('qualify', (entity) => {
+        this.minimapDoc = PanelDocument.data.document[entity.index] as UIKitDocument;
+      });
+
+      this.queries.powerbar.subscribe('qualify', (entity) => {
+        this.powerbarDoc = PanelDocument.data.document[entity.index] as UIKitDocument;
       });
     }
 
@@ -1156,6 +1228,23 @@ async function main() {
       });
     }
 
+    wirePause() {
+      if (!this.pauseDoc) return;
+      const doc = this.pauseDoc;
+
+      const btnResume = doc.getElementById('btn-resume') as UIKit.Text | undefined;
+      btnResume?.addEventListener('click', () => { game.state = 'playing'; });
+
+      const btnRestart = doc.getElementById('btn-restart-pause') as UIKit.Text | undefined;
+      btnRestart?.addEventListener('click', () => { startGame(); });
+
+      const btnQuit = doc.getElementById('btn-quit-pause') as UIKit.Text | undefined;
+      btnQuit?.addEventListener('click', () => {
+        game.state = 'title';
+        clearArena();
+      });
+    }
+
     updateSettings() {
       if (!this.settingsDoc) return;
       const show = game.state === 'settings';
@@ -1191,12 +1280,72 @@ async function main() {
       setText('stat-best', `Best Score: ${game.highScore}`);
     }
 
+    updatePause() {
+      if (!this.pauseDoc) return;
+      const show = game.state === 'pause';
+
+      const root = this.pauseDoc.getElementById('pause-root') as UIKit.Container | undefined;
+      root?.setProperties({ display: show ? 'flex' : 'none' });
+
+      if (!show) return;
+
+      const scoreText = this.pauseDoc.getElementById('pause-score') as UIKit.Text | undefined;
+      scoreText?.setProperties({ text: `Score: ${game.score}` });
+
+      const levelText = this.pauseDoc.getElementById('pause-level') as UIKit.Text | undefined;
+      levelText?.setProperties({ text: `Level: ${game.level}` });
+    }
+
+    updateMinimap() {
+      if (!this.minimapDoc) return;
+      const show = game.state === 'playing' || game.state === 'countdown';
+
+      const root = this.minimapDoc.getElementById('minimap-root') as UIKit.Container | undefined;
+      root?.setProperties({ display: show ? 'flex' : 'none' });
+
+      if (!show) return;
+
+      const activeCount = asteroids.filter(a => a.active).length;
+      const countText = this.minimapDoc.getElementById('minimap-count') as UIKit.Text | undefined;
+      countText?.setProperties({ text: `Asteroids: ${activeCount}` });
+
+      const waveText = this.minimapDoc.getElementById('minimap-wave') as UIKit.Text | undefined;
+      waveText?.setProperties({ text: `Wave ${game.level}` });
+    }
+
+    updatePowerbar() {
+      if (!this.powerbarDoc) return;
+      const playing = game.state === 'playing';
+      const hasPowerups = game.powerUpTimers.size > 0;
+
+      const root = this.powerbarDoc.getElementById('powerbar-root') as UIKit.Container | undefined;
+      root?.setProperties({ display: (playing && hasPowerups) ? 'flex' : 'none' });
+
+      if (!playing || !hasPowerups) return;
+
+      const entries = Array.from(game.powerUpTimers.entries());
+      for (let i = 0; i < 5; i++) {
+        const el = this.powerbarDoc.getElementById(`power-${i}`) as UIKit.Text | undefined;
+        if (i < entries.length) {
+          const [type, timer] = entries[i];
+          const label = type.toUpperCase();
+          const secs = Math.ceil(timer);
+          el?.setProperties({ text: `${label}: ${secs}s`, display: 'flex' });
+        } else {
+          el?.setProperties({ display: 'none' });
+        }
+      }
+    }
+
     update(delta: number) {
       this.updateHUD();
       this.updateMenuVisibility();
       this.updateGameOver();
       this.updateAchievements();
       this.updateSettings();
+      this.updatePause();
+      this.updateMinimap();
+      this.updatePowerbar();
       this.updateToast(delta);
     }
 
@@ -1869,7 +2018,59 @@ async function main() {
       cam.position.y += (camHeight - cam.position.y) * lerpFactor;
       cam.position.z += (targetZ + camDist - cam.position.z) * lerpFactor;
 
+      // Apply screen shake
+      if (shakeState.intensity > 0.01) {
+        cam.position.x += (Math.random() - 0.5) * shakeState.intensity;
+        cam.position.y += (Math.random() - 0.5) * shakeState.intensity * 0.5;
+        cam.position.z += (Math.random() - 0.5) * shakeState.intensity;
+        shakeState.intensity *= shakeState.decay;
+      } else {
+        shakeState.intensity = 0;
+      }
+
       cam.lookAt(targetX, 1.5, targetZ);
+    }
+  }
+
+  // Environment animation system
+  class EnvironmentSystem extends createSystem({}) {
+    private time: number = 0;
+
+    init() {}
+
+    update(delta: number) {
+      this.time += delta;
+
+      // Animate star field - subtle twinkling
+      if (starField) {
+        starField.rotation.y += delta * 0.003;
+        const positions = starField.geometry.attributes.position;
+        // Twinkle a few stars per frame
+        for (let i = 0; i < 5; i++) {
+          const idx = Math.floor(Math.random() * 600);
+          const scale = 0.95 + Math.random() * 0.1;
+          positions.setX(idx, positions.getX(idx) * scale);
+        }
+        positions.needsUpdate = true;
+      }
+
+      // Arena boundary proximity warning
+      if (game.state === 'playing' && game.alive) {
+        const dist = Math.sqrt(game.shipPos.x * game.shipPos.x + game.shipPos.z * game.shipPos.z);
+        const edgeDist = ARENA_RADIUS * 0.9 - dist;
+        const dangerZone = 5; // Start warning within 5 units of edge
+
+        if (edgeDist < dangerZone && edgeDist > 0) {
+          const danger = 1 - (edgeDist / dangerZone);
+          // Pulse the ship engine color to warn
+          const engineMesh = shipGroup.getObjectByName('engine') as Mesh | undefined;
+          if (engineMesh) {
+            const pulse = Math.sin(this.time * 8) * 0.3 + 0.5;
+            const eMat = engineMesh.material as MeshBasicMaterial;
+            eMat.color.setRGB(1, 1 - danger * pulse, 1 - danger);
+          }
+        }
+      }
     }
   }
 
@@ -1878,6 +2079,7 @@ async function main() {
   world.registerSystem(GameplaySystem);
   world.registerSystem(PauseSystem);
   world.registerSystem(CameraFollowSystem);
+  world.registerSystem(EnvironmentSystem);
 
   // ============================================================
   // START GAME

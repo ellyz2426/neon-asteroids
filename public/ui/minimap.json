@@ -1,0 +1,128 @@
+{
+  "element": {
+    "sourceTag": "container",
+    "type": "custom",
+    "children": [
+      {
+        "sourceTag": "text",
+        "type": "custom",
+        "children": [
+          "RADAR"
+        ],
+        "properties": {
+          "name": "minimap-label",
+          "class": "minimap-title"
+        },
+        "dataUid": "uid-2"
+      },
+      {
+        "sourceTag": "text",
+        "type": "custom",
+        "children": [
+          "Asteroids: 0"
+        ],
+        "properties": {
+          "name": "minimap-count",
+          "class": "minimap-info"
+        },
+        "dataUid": "uid-3"
+      },
+      {
+        "sourceTag": "text",
+        "type": "custom",
+        "children": [
+          "Wave 1"
+        ],
+        "properties": {
+          "name": "minimap-wave",
+          "class": "minimap-info"
+        },
+        "dataUid": "uid-4"
+      }
+    ],
+    "properties": {
+      "name": "minimap-root",
+      "display": "flex",
+      "flexdirection": "column",
+      "alignitems": "center",
+      "gap": "2"
+    },
+    "dataUid": "uid-1"
+  },
+  "classes": {
+    "minimap-title": {
+      "content": {
+        "fontSize": "8",
+        "color": "#004444"
+      }
+    },
+    "minimap-info": {
+      "content": {
+        "fontSize": "7",
+        "color": "#006666"
+      }
+    }
+  },
+  "ranges": {
+    "uid-1": {
+      "start": {
+        "line": 0,
+        "column": 0
+      },
+      "end": {
+        "line": 8,
+        "column": 12
+      }
+    },
+    "minimap-title": {
+      "start": {
+        "line": 2,
+        "column": 4
+      },
+      "end": {
+        "line": 2,
+        "column": 18
+      }
+    },
+    "minimap-info": {
+      "start": {
+        "line": 3,
+        "column": 4
+      },
+      "end": {
+        "line": 3,
+        "column": 17
+      }
+    },
+    "uid-2": {
+      "start": {
+        "line": 5,
+        "column": 2
+      },
+      "end": {
+        "line": 5,
+        "column": 63
+      }
+    },
+    "uid-3": {
+      "start": {
+        "line": 6,
+        "column": 2
+      },
+      "end": {
+        "line": 6,
+        "column": 69
+      }
+    },
+    "uid-4": {
+      "start": {
+        "line": 7,
+        "column": 2
+      },
+      "end": {
+        "line": 7,
+        "column": 62
+      }
+    }
+  }
+}
