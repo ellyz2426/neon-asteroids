@@ -1,0 +1,67 @@
+{
+  "element": {
+    "sourceTag": "container",
+    "type": "custom",
+    "children": [
+      {
+        "sourceTag": "text",
+        "type": "custom",
+        "children": [],
+        "properties": {
+          "name": "toast-text",
+          "class": "toast",
+          "display": "none"
+        },
+        "dataUid": "uid-2"
+      }
+    ],
+    "properties": {
+      "name": "toast-root",
+      "flexdirection": "column",
+      "alignitems": "center"
+    },
+    "dataUid": "uid-1"
+  },
+  "classes": {
+    "toast": {
+      "content": {
+        "fontSize": "14",
+        "color": "#ffdd00",
+        "fontWeight": "bold",
+        "textAlign": "center"
+      }
+    }
+  },
+  "ranges": {
+    "uid-1": {
+      "start": {
+        "line": 0,
+        "column": 0
+      },
+      "end": {
+        "line": 5,
+        "column": 12
+      }
+    },
+    "toast": {
+      "start": {
+        "line": 2,
+        "column": 4
+      },
+      "end": {
+        "line": 2,
+        "column": 10
+      }
+    },
+    "uid-2": {
+      "start": {
+        "line": 4,
+        "column": 2
+      },
+      "end": {
+        "line": 4,
+        "column": 62
+      }
+    }
+  }
+}
