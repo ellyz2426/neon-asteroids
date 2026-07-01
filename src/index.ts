@@ -78,8 +78,9 @@ interface FullInputManager {
 // ============================================================
 // GAME CONSTANTS & TYPES
 // ============================================================
-type GameState = 'title' | 'mode' | 'countdown' | 'playing' | 'pause' | 'gameover' | 'leaderboard' | 'achievements' | 'settings' | 'help' | 'skins';
+type GameState = 'title' | 'mode' | 'difficulty' | 'countdown' | 'playing' | 'pause' | 'gameover' | 'leaderboard' | 'achievements' | 'settings' | 'help' | 'skins';
 type GameMode = 'classic' | 'survival' | 'zen' | 'blitz' | 'practice';
+type Difficulty = 'easy' | 'normal' | 'hard' | 'insane';
 type AsteroidSize = 'large' | 'medium' | 'small' | 'boss';
 
 interface AsteroidData {
@@ -118,7 +119,7 @@ interface PowerUpData {
   bobPhase: number;
 }
 
-type PowerUpType = 'shield' | 'rapid' | 'spread' | 'piercing' | 'slow' | 'bomb' | 'life';
+type PowerUpType = 'shield' | 'rapid' | 'spread' | 'piercing' | 'slow' | 'bomb' | 'life' | 'homing' | 'double';
 
 interface Achievement {
   id: string;
@@ -173,6 +174,7 @@ const SHIP_SKINS = [
 class GameManager {
   state: GameState = 'title';
   mode: GameMode = 'classic';
+  difficulty: Difficulty = 'normal';
   score: number = 0;
   highScore: number = 0;
   lives: number = 3;
@@ -202,6 +204,8 @@ class GameManager {
   rapidFire: boolean = false;
   spreadShot: boolean = false;
   piercingShot: boolean = false;
+  homingShot: boolean = false;
+  doubleScore: boolean = false;
   shieldActive: boolean = false;
   powerUpTimers: Map<PowerUpType, number> = new Map();
 
@@ -249,6 +253,11 @@ class GameManager {
   // Boss tracking
   bossActive: boolean = false;
   bossesDefeated: number = 0;
+  bossesInGame: number = 0;
+  noThrustKills: number = 0;
+  lastThrustTime: number = 0;
+  livesLostInGame: number = 0;
+  powerupTypesCollected: Set<PowerUpType> = new Set();
 
   constructor() {
     this.initAchievements();
@@ -314,6 +323,15 @@ class GameManager {
       { id: 'combo_100', name: 'Beyond Insane', desc: 'Get a 100x combo', unlocked: false },
       { id: 'level_100', name: 'Ascended', desc: 'Reach Level 100', unlocked: false },
       { id: 'survival_300', name: 'Iron Will', desc: 'Survive 300 seconds in Survival mode', unlocked: false },
+      { id: 'hard_clear', name: 'Hardcore', desc: 'Clear Level 10 on Hard difficulty', unlocked: false },
+      { id: 'insane_clear', name: 'Insane Pilot', desc: 'Clear Level 5 on Insane difficulty', unlocked: false },
+      { id: 'homing_kills', name: 'Heat Seeker', desc: 'Collect Homing Missiles power-up', unlocked: false },
+      { id: 'double_score', name: 'Midas Touch', desc: 'Collect Double Score power-up', unlocked: false },
+      { id: 'all_powerups', name: 'Full Arsenal', desc: 'Collect all 9 power-up types', unlocked: false },
+      { id: 'speed_run', name: 'Speed Runner', desc: 'Reach Level 10 in under 3 minutes', unlocked: false },
+      { id: 'no_thrust', name: 'Drifter', desc: 'Destroy 5 asteroids without thrusting', unlocked: false },
+      { id: 'triple_boss', name: 'Boss Rush', desc: 'Defeat 3 bosses in one game', unlocked: false },
+      { id: 'one_life', name: 'Flawless', desc: 'Reach Level 15 without losing a life', unlocked: false },
     ];
   }
 
@@ -367,11 +385,19 @@ class GameManager {
     if (this.totalKills >= 5000) this.unlock('kill_5000');
     if (this.combo >= 100) this.unlock('combo_100');
     if (this.level >= 100) this.unlock('level_100');
+    if (this.difficulty === 'hard' && this.level >= 10) this.unlock('hard_clear');
+    if (this.difficulty === 'insane' && this.level >= 5) this.unlock('insane_clear');
+    if (this.powerupTypesCollected.size >= 9) this.unlock('all_powerups');
+    if (this.bossesInGame >= 3) this.unlock('triple_boss');
+    if (this.level >= 15 && this.livesLostInGame === 0) this.unlock('one_life');
+    if (this.noThrustKills >= 5) this.unlock('no_thrust');
   }
 
   addScore(base: number, pos?: Vector3) {
+    const diffMult = this.difficulty === 'easy' ? 0.5 : this.difficulty === 'hard' ? 1.5 : this.difficulty === 'insane' ? 2.0 : 1.0;
+    const scoreMult = this.doubleScore ? 2 : 1;
     const multiplier = 1 + Math.min(this.combo * 0.1, 5);
-    const pts = Math.round(base * multiplier);
+    const pts = Math.round(base * multiplier * diffMult * scoreMult);
     this.score += pts;
     this.combo++;
     this.comboTimer = 3;
@@ -410,6 +436,8 @@ class GameManager {
     this.rapidFire = false;
     this.spreadShot = false;
     this.piercingShot = false;
+    this.homingShot = false;
+    this.doubleScore = false;
     this.shieldActive = false;
     this.slowMotion = false;
     this.powerUpTimers.clear();
@@ -425,6 +453,11 @@ class GameManager {
     this.gameTime = 0;
     this.scorePopups = [];
     this.bossActive = false;
+    this.bossesInGame = 0;
+    this.noThrustKills = 0;
+    this.lastThrustTime = 0;
+    this.livesLostInGame = 0;
+    this.powerupTypesCollected = new Set();
   }
 
   saveLeaderboard() {
@@ -601,6 +634,8 @@ function createPowerUpMesh(type: PowerUpType): Group {
     slow: 0x4488ff,
     bomb: 0xff0000,
     life: 0x44ff44,
+    homing: 0xff8844,
+    double: 0xffff00,
   };
   const color = new Color(colors[type]);
 
@@ -610,13 +645,15 @@ function createPowerUpMesh(type: PowerUpType): Group {
   group.add(new Mesh(ringGeo, ringMat));
 
   // Core icon (simple shape per type)
-  let iconGeo: BoxGeometry | SphereGeometry | ConeGeometry | OctahedronGeometry;
+  let iconGeo: BoxGeometry | SphereGeometry | ConeGeometry | OctahedronGeometry | CylinderGeometry;
   if (type === 'shield') iconGeo = new SphereGeometry(0.15, 8, 8);
   else if (type === 'rapid') iconGeo = new ConeGeometry(0.12, 0.25, 4);
   else if (type === 'spread') iconGeo = new BoxGeometry(0.2, 0.2, 0.2);
   else if (type === 'piercing') iconGeo = new ConeGeometry(0.08, 0.3, 3);
   else if (type === 'slow') iconGeo = new OctahedronGeometry(0.15);
   else if (type === 'bomb') iconGeo = new SphereGeometry(0.18, 6, 6);
+  else if (type === 'homing') iconGeo = new ConeGeometry(0.1, 0.25, 6);
+  else if (type === 'double') iconGeo = new CylinderGeometry(0.12, 0.12, 0.2, 8);
   else iconGeo = new BoxGeometry(0.15, 0.15, 0.15); // life
 
   const iconMat = new MeshStandardMaterial({
@@ -818,7 +855,8 @@ async function main() {
     world.scene.add(mesh);
 
     // Velocity toward center-ish
-    const speed = ASTEROID_SPEEDS[size] * (0.7 + Math.random() * 0.6) * (1 + game.level * 0.08);
+    const diffSpeedMult = game.difficulty === 'easy' ? 0.7 : game.difficulty === 'hard' ? 1.3 : game.difficulty === 'insane' ? 1.6 : 1.0;
+    const speed = ASTEROID_SPEEDS[size] * (0.7 + Math.random() * 0.6) * (1 + game.level * 0.08) * diffSpeedMult;
     const toCenter = new Vector3(-spawnPos.x, 0, -spawnPos.z).normalize();
     const offset = new Vector3(Math.random() - 0.5, 0, Math.random() - 0.5).multiplyScalar(0.5);
     const vel = toCenter.add(offset).normalize().multiplyScalar(speed);
@@ -908,9 +946,10 @@ async function main() {
   }
 
   function spawnPowerUp(pos: Vector3) {
-    if (Math.random() > 0.15) return; // 15% chance
-    const types: PowerUpType[] = ['shield', 'rapid', 'spread', 'piercing', 'slow', 'bomb', 'life'];
-    const weights = [15, 20, 15, 15, 10, 5, 10]; // life + bomb rarer
+    const dropChance = game.difficulty === 'easy' ? 0.20 : game.difficulty === 'hard' ? 0.10 : game.difficulty === 'insane' ? 0.07 : 0.15;
+    if (Math.random() > dropChance) return;
+    const types: PowerUpType[] = ['shield', 'rapid', 'spread', 'piercing', 'slow', 'bomb', 'life', 'homing', 'double'];
+    const weights = [15, 20, 15, 15, 10, 5, 10, 12, 8]; // homing + double have moderate rarity
     const totalW = weights.reduce((a, b) => a + b, 0);
     let r = Math.random() * totalW;
     let type: PowerUpType = 'rapid';
@@ -947,6 +986,16 @@ async function main() {
       game.unlock('speed_kill');
     }
 
+    // No-thrust kill tracking
+    if (game.gameTime - game.lastThrustTime > 2) {
+      game.noThrustKills++;
+    }
+
+    // Speed run check
+    if (game.level >= 10 && game.gameTime < 180) {
+      game.unlock('speed_run');
+    }
+
     // Explosion
     const shakeAmt = ast.size === 'boss' ? 1.0 : ast.size === 'large' ? 0.5 : ast.size === 'medium' ? 0.3 : 0.15;
     const particleCount = ast.size === 'boss' ? 25 : ast.size === 'large' ? 15 : ast.size === 'medium' ? 10 : 6;
@@ -955,6 +1004,7 @@ async function main() {
     // Split
     if (ast.size === 'boss') {
       game.bossesDefeated++;
+      game.bossesInGame++;
       game.bossActive = false;
       game.toastQueue.push('BOSS DESTROYED!');
       for (let i = 0; i < 4; i++) {
@@ -997,6 +1047,7 @@ async function main() {
     game.lives--;
     game.combo = 0;
     game.comboTimer = 0;
+    game.livesLostInGame++;
     spawnExplosion(game.shipPos.clone().setY(1.5), new Color(THEMES[game.currentTheme].ship), 20, 0.8);
 
     if (game.lives <= 0) {
@@ -1036,6 +1087,7 @@ async function main() {
 
   function collectPowerUp(pu: PowerUpData) {
     game.powerupsCollected++;
+    game.powerupTypesCollected.add(pu.type);
 
     switch (pu.type) {
       case 'shield':
@@ -1074,6 +1126,18 @@ async function main() {
       case 'life':
         game.lives = Math.min(game.lives + 1, 9);
         game.toastQueue.push('+1 Life!');
+        break;
+      case 'homing':
+        game.homingShot = true;
+        game.powerUpTimers.set('homing', POWERUP_DURATION);
+        game.toastQueue.push('Homing Missiles!');
+        game.unlock('homing_kills');
+        break;
+      case 'double':
+        game.doubleScore = true;
+        game.powerUpTimers.set('double', 10);
+        game.toastQueue.push('DOUBLE SCORE!');
+        game.unlock('double_score');
         break;
     }
 
@@ -1233,19 +1297,19 @@ async function main() {
       const doc = this.menuDoc;
 
       const btnClassic = doc.getElementById('btn-classic') as UIKit.Text | undefined;
-      btnClassic?.addEventListener('click', () => { game.mode = 'classic'; startGame(); });
+      btnClassic?.addEventListener('click', () => { game.mode = 'classic'; game.difficulty = 'normal'; startGame(); });
 
       const btnSurvival = doc.getElementById('btn-survival') as UIKit.Text | undefined;
-      btnSurvival?.addEventListener('click', () => { game.mode = 'survival'; startGame(); });
+      btnSurvival?.addEventListener('click', () => { game.mode = 'survival'; game.difficulty = 'normal'; startGame(); });
 
       const btnZen = doc.getElementById('btn-zen') as UIKit.Text | undefined;
-      btnZen?.addEventListener('click', () => { game.mode = 'zen'; startGame(); });
+      btnZen?.addEventListener('click', () => { game.mode = 'zen'; game.difficulty = 'normal'; startGame(); });
 
       const btnBlitz = doc.getElementById('btn-blitz') as UIKit.Text | undefined;
-      btnBlitz?.addEventListener('click', () => { game.mode = 'blitz'; startGame(); });
+      btnBlitz?.addEventListener('click', () => { game.mode = 'blitz'; game.difficulty = 'normal'; startGame(); });
 
       const btnPractice = doc.getElementById('btn-practice') as UIKit.Text | undefined;
-      btnPractice?.addEventListener('click', () => { game.mode = 'practice'; startGame(); });
+      btnPractice?.addEventListener('click', () => { game.mode = 'practice'; game.difficulty = 'easy'; startGame(); });
 
       const btnAch = doc.getElementById('btn-achievements') as UIKit.Text | undefined;
       btnAch?.addEventListener('click', () => { game.state = 'achievements'; game.achPage = 0; });
@@ -1319,6 +1383,19 @@ async function main() {
       themeNext?.addEventListener('click', () => {
         game.currentTheme = (game.currentTheme + 1) % THEMES.length;
       });
+
+      const diffs: Difficulty[] = ['easy', 'normal', 'hard', 'insane'];
+      const diffPrev = doc.getElementById('diff-prev') as UIKit.Text | undefined;
+      diffPrev?.addEventListener('click', () => {
+        const idx = diffs.indexOf(game.difficulty);
+        game.difficulty = diffs[(idx - 1 + diffs.length) % diffs.length];
+      });
+
+      const diffNext = doc.getElementById('diff-next') as UIKit.Text | undefined;
+      diffNext?.addEventListener('click', () => {
+        const idx = diffs.indexOf(game.difficulty);
+        game.difficulty = diffs[(idx + 1) % diffs.length];
+      });
     }
 
     wirePause() {
@@ -1371,6 +1448,19 @@ async function main() {
       const acc = game.totalShots > 0 ? Math.round((game.totalHits / game.totalShots) * 100) : 0;
       setText('stat-accuracy', `Accuracy: ${acc}%`);
       setText('stat-best', `Best Score: ${game.highScore}`);
+      setText('stat-bosses', `Bosses Defeated: ${game.bossesDefeated}`);
+
+      // Difficulty display
+      const diffDescs: Record<Difficulty, string> = {
+        easy: 'Slower rocks, more drops',
+        normal: 'Standard experience',
+        hard: 'Faster rocks, fewer drops, 1.5x score',
+        insane: 'Extreme speed, rare drops, 2x score',
+      };
+      const diffName = this.settingsDoc.getElementById('diff-name') as UIKit.Text | undefined;
+      diffName?.setProperties({ text: game.difficulty.toUpperCase() });
+      const diffDesc = this.settingsDoc.getElementById('diff-desc') as UIKit.Text | undefined;
+      diffDesc?.setProperties({ text: diffDescs[game.difficulty] });
     }
 
     updatePause() {
@@ -1479,6 +1569,8 @@ async function main() {
       if (game.piercingShot) activePowerups.push('PIERCE');
       if (game.shieldActive) activePowerups.push('SHIELD');
       if (game.slowMotion) activePowerups.push('SLOW');
+      if (game.homingShot) activePowerups.push('HOMING');
+      if (game.doubleScore) activePowerups.push('2xSCORE');
       powerup?.setProperties({
         text: activePowerups.length > 0 ? activePowerups.join(' | ') : '',
         display: activePowerups.length > 0 ? 'flex' : 'none',
@@ -1564,8 +1656,17 @@ async function main() {
       const finalScore = this.overDoc.getElementById('final-score') as UIKit.Text | undefined;
       finalScore?.setProperties({ text: `Score: ${game.score}` });
 
+      const finalMode = this.overDoc.getElementById('final-mode') as UIKit.Text | undefined;
+      finalMode?.setProperties({ text: game.mode.charAt(0).toUpperCase() + game.mode.slice(1) });
+
+      const finalDiff = this.overDoc.getElementById('final-diff') as UIKit.Text | undefined;
+      finalDiff?.setProperties({ text: game.difficulty.toUpperCase() });
+
       const finalLevel = this.overDoc.getElementById('final-level') as UIKit.Text | undefined;
       finalLevel?.setProperties({ text: `Level: ${game.level}` });
+
+      const finalKills = this.overDoc.getElementById('final-kills') as UIKit.Text | undefined;
+      finalKills?.setProperties({ text: `Kills: ${game.asteroidsCleared}` });
 
       const finalCombo = this.overDoc.getElementById('final-combo') as UIKit.Text | undefined;
       finalCombo?.setProperties({ text: `Best Combo: ${game.maxCombo}x` });
@@ -1573,6 +1674,13 @@ async function main() {
       const accuracy = game.totalShots > 0 ? Math.round((game.totalHits / game.totalShots) * 100) : 0;
       const finalAcc = this.overDoc.getElementById('final-accuracy') as UIKit.Text | undefined;
       finalAcc?.setProperties({ text: `Accuracy: ${accuracy}%` });
+
+      const finalPowerups = this.overDoc.getElementById('final-powerups') as UIKit.Text | undefined;
+      finalPowerups?.setProperties({ text: `Power-ups: ${game.powerupsCollected}` });
+
+      const finalTime = this.overDoc.getElementById('final-time') as UIKit.Text | undefined;
+      const secs = Math.floor(game.gameTime);
+      finalTime?.setProperties({ text: `Time: ${Math.floor(secs / 60)}m ${secs % 60}s` });
 
       const isNew = game.score >= game.highScore && game.score > 0;
       const newHs = this.overDoc.getElementById('new-highscore') as UIKit.Text | undefined;
@@ -1821,6 +1929,8 @@ async function main() {
       }
 
       if (game.shipThrusting) {
+        game.lastThrustTime = game.gameTime;
+        game.noThrustKills = 0;
         const thrust = new Vector3(
           -Math.sin(game.shipAngle) * SHIP_THRUST * dt,
           0,
@@ -1888,6 +1998,25 @@ async function main() {
           b.mesh.visible = false;
           continue;
         }
+
+        // Homing behavior: gently curve toward nearest asteroid
+        if (b.piercing === false && game.homingShot) {
+          let closestDist = 15;
+          let closestPos: Vector3 | null = null;
+          for (const ast of asteroids) {
+            if (!ast.active) continue;
+            const d = b.mesh.position.distanceTo(ast.mesh.position);
+            if (d < closestDist) {
+              closestDist = d;
+              closestPos = ast.mesh.position;
+            }
+          }
+          if (closestPos) {
+            const toTarget = closestPos.clone().sub(b.mesh.position).normalize();
+            b.velocity.lerp(toTarget.multiplyScalar(BULLET_SPEED), 0.05);
+          }
+        }
+
         b.mesh.position.add(b.velocity.clone().multiplyScalar(dt));
 
         // Wrap bullets
@@ -2049,6 +2178,8 @@ async function main() {
             case 'piercing': game.piercingShot = false; break;
             case 'shield': game.shieldActive = false; break;
             case 'slow': game.slowMotion = false; break;
+            case 'homing': game.homingShot = false; break;
+            case 'double': game.doubleScore = false; break;
           }
         } else {
           game.powerUpTimers.set(type, newTimer);

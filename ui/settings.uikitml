@@ -9,8 +9,17 @@
     .skin-lock { fontSize: 9; color: #666666; }
     .section { fontSize: 14; color: #00cccc; fontWeight: bold; }
     .back-btn { fontSize: 12; color: #ff6644; backgroundColor: #221100; borderRadius: 3; padding: 4; width: 100; textAlign: center; cursor: pointer; }
+    .diff-label { fontSize: 12; color: #ffaa00; fontWeight: bold; }
   </style>
   <text class="title">SETTINGS</text>
+
+  <text class="section">Difficulty</text>
+  <container class="row">
+    <text name="diff-prev" class="btn">&lt;</text>
+    <text name="diff-name" class="diff-label">Normal</text>
+    <text name="diff-next" class="btn">&gt;</text>
+  </container>
+  <text name="diff-desc" class="label">Standard experience</text>
 
   <text class="section">Ship Skin</text>
   <container class="row">
@@ -34,6 +43,7 @@
   <text name="stat-time" class="label">Play Time: 0m</text>
   <text name="stat-accuracy" class="label">Accuracy: 0%</text>
   <text name="stat-best" class="label">Best Score: 0</text>
+  <text name="stat-bosses" class="label">Bosses Defeated: 0</text>
 
   <text name="btn-back-settings" class="back-btn">Back</text>
 </container>

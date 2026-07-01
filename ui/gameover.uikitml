@@ -1,17 +1,29 @@
-<container name="over-root" display="none" flexDirection="column" alignItems="center" gap="6" padding="12">
+<container name="over-root" display="none" flexDirection="column" alignItems="center" gap="5" padding="12">
   <style>
     .title { fontSize: 28; color: #ff4444; fontWeight: bold; }
     .score-text { fontSize: 20; color: #00ffff; fontWeight: bold; }
-    .stat-text { fontSize: 12; color: #00aaaa; }
+    .stat-text { fontSize: 11; color: #00aaaa; }
+    .stat-row { flexDirection: row; gap: 12; }
     .new-hs { fontSize: 16; color: #ffdd00; fontWeight: bold; }
     .btn { fontSize: 14; color: #00ffff; backgroundColor: #002222; borderRadius: 4; padding: 6; width: 180; textAlign: center; cursor: pointer; }
+    .mode-text { fontSize: 12; color: #ffaa00; }
+    .diff-text { fontSize: 10; color: #888888; }
   </style>
   <text class="title">GAME OVER</text>
   <text name="new-highscore" class="new-hs" display="none">NEW HIGH SCORE!</text>
   <text name="final-score" class="score-text">Score: 0</text>
-  <text name="final-level" class="stat-text">Level: 1</text>
-  <text name="final-combo" class="stat-text">Best Combo: 0x</text>
-  <text name="final-accuracy" class="stat-text">Accuracy: 0%</text>
+  <text name="final-mode" class="mode-text">Classic</text>
+  <text name="final-diff" class="diff-text">Normal</text>
+  <container class="stat-row">
+    <text name="final-level" class="stat-text">Level: 1</text>
+    <text name="final-kills" class="stat-text">Kills: 0</text>
+  </container>
+  <container class="stat-row">
+    <text name="final-combo" class="stat-text">Best Combo: 0x</text>
+    <text name="final-accuracy" class="stat-text">Accuracy: 0%</text>
+  </container>
+  <text name="final-powerups" class="stat-text">Power-ups: 0</text>
+  <text name="final-time" class="stat-text">Time: 0s</text>
   <container flexDirection="row" gap="6">
     <text name="btn-retry" class="btn">Play Again</text>
     <text name="btn-menu" class="btn">Main Menu</text>
