@@ -263,8 +263,68 @@ class GameManager {
   weaponTier: number = 0;
   killsThisGame: number = 0;
 
+  // Skin unlock tracking
+  unlockedSkins: Set<number> = new Set([0]); // Index 0 always unlocked
+
   constructor() {
     this.initAchievements();
+    this.load();
+  }
+
+  // localStorage persistence
+  save() {
+    try {
+      const data = {
+        highScore: this.highScore,
+        totalKills: this.totalKills,
+        totalShots: this.totalShots,
+        totalHits: this.totalHits,
+        gamesPlayed: this.gamesPlayed,
+        bestLevel: this.bestLevel,
+        totalPlayTime: this.totalPlayTime,
+        bossesDefeated: this.bossesDefeated,
+        powerupsCollected: this.powerupsCollected,
+        currentTheme: this.currentTheme,
+        currentSkin: this.currentSkin,
+        difficulty: this.difficulty,
+        achievements: this.achievements.filter(a => a.unlocked).map(a => a.id),
+        leaderboard: this.leaderboard,
+        unlockedSkins: Array.from(this.unlockedSkins),
+        modesPlayed: Array.from(this.modesPlayed),
+        themesPlayed: Array.from(this.themesPlayed),
+      };
+      localStorage.setItem('neon-asteroids-save', JSON.stringify(data));
+    } catch { /* localStorage unavailable */ }
+  }
+
+  load() {
+    try {
+      const raw = localStorage.getItem('neon-asteroids-save');
+      if (!raw) return;
+      const data = JSON.parse(raw);
+      this.highScore = data.highScore ?? 0;
+      this.totalKills = data.totalKills ?? 0;
+      this.totalShots = data.totalShots ?? 0;
+      this.totalHits = data.totalHits ?? 0;
+      this.gamesPlayed = data.gamesPlayed ?? 0;
+      this.bestLevel = data.bestLevel ?? 1;
+      this.totalPlayTime = data.totalPlayTime ?? 0;
+      this.bossesDefeated = data.bossesDefeated ?? 0;
+      this.powerupsCollected = data.powerupsCollected ?? 0;
+      this.currentTheme = data.currentTheme ?? 0;
+      this.currentSkin = data.currentSkin ?? 0;
+      this.difficulty = data.difficulty ?? 'normal';
+      if (data.achievements) {
+        for (const id of data.achievements) {
+          const a = this.achievements.find(x => x.id === id);
+          if (a) a.unlocked = true;
+        }
+      }
+      if (data.leaderboard) this.leaderboard = data.leaderboard;
+      if (data.unlockedSkins) this.unlockedSkins = new Set(data.unlockedSkins);
+      if (data.modesPlayed) this.modesPlayed = new Set(data.modesPlayed);
+      if (data.themesPlayed) this.themesPlayed = new Set(data.themesPlayed);
+    } catch { /* corrupted or unavailable */ }
   }
 
   initAchievements() {
@@ -353,9 +413,22 @@ class GameManager {
     if (a && !a.unlocked) {
       a.unlocked = true;
       this.toastQueue.push(`Achievement: ${a.name}!`);
+      this.save();
       return true;
     }
     return false;
+  }
+
+  checkSkinUnlocks() {
+    // Unlock skins based on score/level thresholds
+    if (this.highScore >= 500) this.unlockedSkins.add(1);
+    if (this.highScore >= 2000) this.unlockedSkins.add(2);
+    if (this.highScore >= 5000) this.unlockedSkins.add(3);
+    if (this.highScore >= 10000) this.unlockedSkins.add(4);
+    if (this.bestLevel >= 10) this.unlockedSkins.add(5);
+    if (this.bestLevel >= 20) this.unlockedSkins.add(6);
+    if (this.highScore >= 50000) this.unlockedSkins.add(7);
+    if (this.unlockedSkins.size >= 8) this.unlock('all_skins');
   }
 
   checkAchievements() {
@@ -409,6 +482,7 @@ class GameManager {
     if (this.combo >= 30) this.unlock('combo_30');
     if (this.score >= 1000000) this.unlock('score_1m');
     if (this.gamesPlayed >= 100) this.unlock('games_100');
+    this.checkSkinUnlocks();
   }
 
   addScore(base: number, pos?: Vector3) {
@@ -427,6 +501,9 @@ class GameManager {
       const popupText = this.combo > 1 ? `+${pts} (${this.combo}x)` : `+${pts}`;
       this.scorePopups.push({ text: popupText, pos: pos.clone(), life: 1.2, maxLife: 1.2 });
       if (this.scorePopups.length > 10) this.scorePopups.shift();
+      // Store combo for visual intensity
+      (this as any)._lastScorePopupCombo = this.combo;
+      (this as any)._lastScorePopupPts = pts;
     }
 
     // Kill streak tracking
@@ -492,6 +569,7 @@ class GameManager {
     });
     this.leaderboard.sort((a, b) => b.score - a.score);
     if (this.leaderboard.length > 20) this.leaderboard.length = 20;
+    this.save();
   }
 }
 
@@ -636,13 +714,25 @@ function createShipMesh(skin: typeof SHIP_SKINS[0]): Group {
   return group;
 }
 
-function createBulletMesh(color: Color): Mesh {
-  const geo = new CylinderGeometry(0.03, 0.03, 0.4, 6);
+// Weapon tier visuals: color and size per tier level
+const WEAPON_TIER_VISUALS = [
+  { color: '#00ffff', radius: 0.03, length: 0.4 },  // 0: Standard cyan
+  { color: '#44ff88', radius: 0.035, length: 0.45 }, // 1: Dual Shot - green
+  { color: '#ffdd00', radius: 0.035, length: 0.42 }, // 2: Fast Reload - yellow
+  { color: '#ff8800', radius: 0.04, length: 0.5 },   // 3: Tri-Beam - orange
+  { color: '#ff44ff', radius: 0.045, length: 0.55 }, // 4: Plasma Bolts - magenta
+  { color: '#ffffff', radius: 0.05, length: 0.6 },   // 5: Omega Cannon - white
+];
+
+function createBulletMesh(color: Color, tier: number = 0): Mesh {
+  const vis = WEAPON_TIER_VISUALS[Math.min(tier, 5)];
+  const geo = new CylinderGeometry(vis.radius, vis.radius, vis.length, 6);
   geo.rotateX(Math.PI / 2);
+  const bulletColor = tier > 0 ? new Color(vis.color) : color;
   const mat = new MeshBasicMaterial({
-    color,
+    color: bulletColor,
     transparent: true,
-    opacity: 0.9,
+    opacity: tier >= 4 ? 1.0 : 0.9,
   });
   return new Mesh(geo, mat);
 }
@@ -931,6 +1021,14 @@ async function main() {
       -Math.cos(angle + offset)
     );
 
+    // Update bullet mesh appearance based on weapon tier
+    const vis = WEAPON_TIER_VISUALS[Math.min(game.weaponTier, 5)];
+    const bMat = bullet.mesh.material as MeshBasicMaterial;
+    bMat.color.set(game.weaponTier > 0 ? vis.color : THEMES[game.currentTheme].bullet);
+    bMat.opacity = game.weaponTier >= 4 ? 1.0 : 0.9;
+    const scale = game.weaponTier > 0 ? 1 + game.weaponTier * 0.15 : 1;
+    bullet.mesh.scale.setScalar(scale);
+
     bullet.mesh.position.copy(pos);
     bullet.mesh.rotation.y = angle + offset;
     bullet.mesh.visible = true;
@@ -944,6 +1042,31 @@ async function main() {
   function spawnExplosion(pos: Vector3, color: Color, count: number = 8, shakeAmount: number = 0.3) {
     // Trigger screen shake
     shakeState.intensity = Math.max(shakeState.intensity, shakeAmount);
+
+    // Shockwave ring
+    if (count >= 10) {
+      const ringGeo = new RingGeometry(0.1, 0.3, 16);
+      const ringMat = new MeshBasicMaterial({
+        color,
+        transparent: true,
+        opacity: 0.6,
+        side: DoubleSide,
+        blending: AdditiveBlending,
+      });
+      const ring = new Mesh(ringGeo, ringMat);
+      ring.position.copy(pos);
+      ring.rotation.x = -Math.PI / 2;
+      world.scene.add(ring);
+
+      const maxLife = 0.6;
+      particles.push({
+        mesh: ring,
+        velocity: new Vector3(0, 0, 0),
+        life: maxLife,
+        maxLife,
+        active: true,
+      });
+    }
 
     for (let i = 0; i < count && particles.filter(p => p.active).length < MAX_PARTICLES; i++) {
       const size = 0.03 + Math.random() * 0.06;
@@ -1005,6 +1128,9 @@ async function main() {
     game.killsThisGame++;
     game.asteroidsCleared++;
 
+    // Show 3D score popup
+    showScorePopup(pos.clone().setY(1.5), (game as any)._lastScorePopupPts ?? 20, game.combo);
+
     // Weapon tier upgrades based on kills
     const newTier = Math.min(Math.floor(game.killsThisGame / 20), 5);
     if (newTier > game.weaponTier) {
@@ -1026,6 +1152,12 @@ async function main() {
     // Speed run check
     if (game.level >= 10 && game.gameTime < 180) {
       game.unlock('speed_run');
+    }
+
+    // Bounce shot check (asteroid destroyed near arena edge)
+    const edgeDist = Math.sqrt(pos.x * pos.x + pos.z * pos.z);
+    if (edgeDist > ARENA_RADIUS * 0.75) {
+      game.unlock('bounce_shot');
     }
 
     // Explosion
@@ -1080,12 +1212,43 @@ async function main() {
     game.combo = 0;
     game.comboTimer = 0;
     game.livesLostInGame++;
-    spawnExplosion(game.shipPos.clone().setY(1.5), new Color(THEMES[game.currentTheme].ship), 20, 0.8);
+
+    // Ship debris effect — spawn ship-colored fragments
+    const shipColor = new Color(SHIP_SKINS[game.currentSkin].color);
+    const deathPos = game.shipPos.clone().setY(1.5);
+    for (let i = 0; i < 12 && particles.filter(p => p.active).length < MAX_PARTICLES; i++) {
+      const fSize = 0.05 + Math.random() * 0.1;
+      const fGeo = i % 3 === 0
+        ? new ConeGeometry(fSize, fSize * 2, 3)
+        : new BoxGeometry(fSize, fSize * 0.5, fSize * 1.5);
+      const fMat = new MeshBasicMaterial({
+        color: shipColor,
+        transparent: true,
+        opacity: 0.9,
+      });
+      const fMesh = new Mesh(fGeo, fMat);
+      fMesh.position.copy(deathPos);
+      fMesh.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
+      world.scene.add(fMesh);
+
+      const vel = new Vector3(
+        (Math.random() - 0.5) * 12,
+        Math.random() * 6,
+        (Math.random() - 0.5) * 12
+      );
+      particles.push({ mesh: fMesh, velocity: vel, life: 1.0 + Math.random() * 0.5, maxLife: 1.5, active: true });
+    }
+    spawnExplosion(deathPos, shipColor, 20, 0.8);
 
     if (game.lives <= 0) {
       game.alive = false;
       game.state = 'gameover';
       game.gamesPlayed++;
+      // Check accuracy achievement at game over
+      if (game.totalShots >= 20) {
+        const acc = game.totalHits / game.totalShots;
+        if (acc >= 0.9) game.unlock('accuracy_90');
+      }
       game.saveLeaderboard();
       game.checkAchievements();
       shipGroup.visible = false;
@@ -1253,6 +1416,53 @@ async function main() {
   powerbarEntity.addComponent(Follower, {});
   const pbv = powerbarEntity.getVectorView(Follower, 'offsetPosition');
   pbv[0] = 0; pbv[1] = -0.15; pbv[2] = -0.8;
+
+  // Score popup meshes pool
+  interface ScorePopupVisual {
+    group: Group;
+    life: number;
+    maxLife: number;
+    active: boolean;
+    startPos: Vector3;
+  }
+  const scorePopupVisuals: ScorePopupVisual[] = [];
+
+  function showScorePopup(pos: Vector3, score: number, comboMultiplier: number) {
+    const group = new Group();
+    group.position.copy(pos);
+
+    // Create a small diamond-shaped indicator with size based on score
+    const size = Math.min(0.1 + score * 0.0001, 0.4);
+    const geo = new OctahedronGeometry(size, 0);
+    const comboColors = ['#00ffff', '#44ff44', '#ffdd00', '#ff8800', '#ff44ff', '#ff0000'];
+    const colorIdx = Math.min(Math.floor(comboMultiplier / 3), comboColors.length - 1);
+    const mat = new MeshBasicMaterial({
+      color: new Color(comboColors[colorIdx]),
+      transparent: true,
+      opacity: 0.9,
+    });
+    const diamond = new Mesh(geo, mat);
+    group.add(diamond);
+
+    // Glow sphere
+    const glowGeo = new SphereGeometry(size * 1.5, 8, 8);
+    const glowMat = new MeshBasicMaterial({
+      color: new Color(comboColors[colorIdx]),
+      transparent: true,
+      opacity: 0.2,
+      blending: AdditiveBlending,
+    });
+    group.add(new Mesh(glowGeo, glowMat));
+
+    world.scene.add(group);
+    scorePopupVisuals.push({
+      group,
+      life: 0.8,
+      maxLife: 0.8,
+      active: true,
+      startPos: pos.clone(),
+    });
+  }
 
   // Screen shake state
   const shakeState = { intensity: 0, decay: 0.92 };
@@ -1464,7 +1674,11 @@ async function main() {
 
       const skinLock = this.settingsDoc.getElementById('skin-lock') as UIKit.Text | undefined;
       const unlock = SHIP_SKINS[game.currentSkin].unlock;
-      skinLock?.setProperties({ text: unlock ? `Unlock: ${unlock}` : 'Default', display: 'flex' });
+      const isUnlocked = game.unlockedSkins.has(game.currentSkin);
+      skinLock?.setProperties({
+        text: !unlock ? 'Default' : isUnlocked ? 'Unlocked!' : `Locked (${unlock})`,
+        display: 'flex',
+      });
 
       const themeName = this.settingsDoc.getElementById('theme-name') as UIKit.Text | undefined;
       themeName?.setProperties({ text: THEMES[game.currentTheme].name });
@@ -1585,7 +1799,8 @@ async function main() {
       score?.setProperties({ text: `Score: ${game.score}` });
 
       const lives = this.hudDoc.getElementById('lives') as UIKit.Text | undefined;
-      lives?.setProperties({ text: `Lives: ${game.lives}` });
+      const livesColor = game.lives <= 1 ? '#ff4444' : '#00ffff';
+      lives?.setProperties({ text: `Lives: ${game.lives}`, color: livesColor });
 
       const level = this.hudDoc.getElementById('level') as UIKit.Text | undefined;
       level?.setProperties({ text: `Level ${game.level}` });
@@ -1728,6 +1943,16 @@ async function main() {
       const isNew = game.score >= game.highScore && game.score > 0;
       const newHs = this.overDoc.getElementById('new-highscore') as UIKit.Text | undefined;
       newHs?.setProperties({ display: isNew ? 'flex' : 'none' });
+
+      // Performance rating
+      const accScore = game.totalShots > 0 ? (game.totalHits / game.totalShots) : 0;
+      let rating = 'D';
+      if (game.score >= 50000 || (game.score >= 20000 && accScore >= 0.8)) rating = 'S';
+      else if (game.score >= 20000 || (game.score >= 10000 && accScore >= 0.7)) rating = 'A';
+      else if (game.score >= 10000 || (game.score >= 5000 && accScore >= 0.5)) rating = 'B';
+      else if (game.score >= 3000) rating = 'C';
+      const ratingEl = this.overDoc.getElementById('final-rating') as UIKit.Text | undefined;
+      ratingEl?.setProperties({ text: `Rating: ${rating}` });
     }
 
     updateAchievements() {
@@ -1789,6 +2014,7 @@ async function main() {
     private levelHitsAtStart: number = 0;
     private levelDamageTaken: boolean = false;
     private sessionTime: number = 0;
+    private waveStartTime: number = 0;
 
     init() {}
 
@@ -1851,6 +2077,11 @@ async function main() {
         if (game.blitzTimer <= 0) {
           game.state = 'gameover';
           game.gamesPlayed++;
+          // Check accuracy at blitz end
+          if (game.totalShots >= 20) {
+            const acc = game.totalHits / game.totalShots;
+            if (acc >= 0.9) game.unlock('accuracy_90');
+          }
           game.saveLeaderboard();
           game.checkAchievements();
         }
@@ -1948,6 +2179,7 @@ async function main() {
         this.levelHitsAtStart = game.totalHits;
         this.levelDamageTaken = false;
         this.sessionTime = 0;
+        this.waveStartTime = game.gameTime;
         spawnWave();
       }
     }
@@ -2107,7 +2339,7 @@ async function main() {
         ast.mesh.rotation.y += ast.rotSpeed.y * dt;
         ast.mesh.rotation.z += ast.rotSpeed.z * dt;
 
-        // Boss ring animation
+        // Boss ring animation and trail particles
         if (ast.size === 'boss') {
           const ring = ast.mesh.getObjectByName('boss-ring');
           if (ring) ring.rotation.z += dt * 2;
@@ -2125,6 +2357,26 @@ async function main() {
               }
             }
           });
+
+          // Boss trail particles
+          if (Math.random() < 0.3 && particles.filter(p => p.active).length < MAX_PARTICLES) {
+            const trailSize = 0.04 + Math.random() * 0.06;
+            const trailGeo = new BoxGeometry(trailSize, trailSize, trailSize);
+            const trailColor = hpRatio > 0.5 ? 0xff2200 : 0xffaa00;
+            const trailMat = new MeshBasicMaterial({ color: trailColor, transparent: true, opacity: 0.6 });
+            const trailMesh = new Mesh(trailGeo, trailMat);
+            trailMesh.position.copy(ast.mesh.position);
+            trailMesh.position.x += (Math.random() - 0.5) * ast.radius;
+            trailMesh.position.z += (Math.random() - 0.5) * ast.radius;
+            world.scene.add(trailMesh);
+            particles.push({
+              mesh: trailMesh,
+              velocity: new Vector3((Math.random() - 0.5) * 0.5, Math.random() * 0.5, (Math.random() - 0.5) * 0.5),
+              life: 0.3 + Math.random() * 0.3,
+              maxLife: 0.6,
+              active: true,
+            });
+          }
         }
 
         // Wrap
@@ -2144,9 +2396,18 @@ async function main() {
           world.scene.remove(p.mesh);
           continue;
         }
+        const alpha = p.life / p.maxLife;
+
+        // Ring shockwave — expand and fade
+        if (p.mesh instanceof Mesh && p.mesh.geometry instanceof RingGeometry) {
+          const scale = 1 + (1 - alpha) * 6;
+          p.mesh.scale.setScalar(scale);
+          (p.mesh.material as MeshBasicMaterial).opacity = alpha * 0.6;
+          continue;
+        }
+
         p.mesh.position.add(p.velocity.clone().multiplyScalar(dt));
         p.velocity.multiplyScalar(0.96);
-        const alpha = p.life / p.maxLife;
         if (p.mesh instanceof Mesh) {
           (p.mesh.material as MeshBasicMaterial).opacity = alpha;
         }
@@ -2167,6 +2428,19 @@ async function main() {
         pu.bobPhase += dt * 3;
         pu.mesh.position.y = 1.5 + Math.sin(pu.bobPhase) * 0.2;
         pu.mesh.rotation.y += dt * 2;
+
+        // Power-up magnet at weapon tier 3+
+        if (game.weaponTier >= 3 && game.alive) {
+          const dx = game.shipPos.x - pu.mesh.position.x;
+          const dz = game.shipPos.z - pu.mesh.position.z;
+          const dist = Math.sqrt(dx * dx + dz * dz);
+          const magnetRange = 3 + game.weaponTier;
+          if (dist < magnetRange && dist > 0.5) {
+            const pullStrength = (1 - dist / magnetRange) * 4 * dt;
+            pu.mesh.position.x += dx / dist * pullStrength;
+            pu.mesh.position.z += dz / dist * pullStrength;
+          }
+        }
 
         // Flash when about to expire
         if (pu.life < 3) {
@@ -2281,6 +2555,23 @@ async function main() {
           this.levelHitsAtStart = game.totalHits;
           this.levelDamageTaken = false;
           game.toastQueue.push(`Level ${game.level}!`);
+          // Check no_powerup achievement
+          if (game.level >= 5 && game.powerupTypesCollected.size === 0) {
+            game.unlock('no_powerup');
+          }
+
+          // Wave clear bonus — faster clear = more bonus
+          const waveDuration = game.gameTime - this.waveStartTime;
+          if (waveDuration > 0 && waveDuration < 30) {
+            const bonusMultiplier = Math.max(1, Math.floor((30 - waveDuration) / 5));
+            const waveBonus = 100 * bonusMultiplier * (game.level - 1);
+            if (waveBonus > 0) {
+              game.score += waveBonus;
+              game.toastQueue.push(`Wave Clear Bonus: +${waveBonus}!`);
+            }
+          }
+          this.waveStartTime = game.gameTime;
+
           game.checkAchievements();
           spawnWave();
 
@@ -2426,6 +2717,30 @@ async function main() {
           }
         }
       }
+
+      // Animate score popups
+      for (const popup of scorePopupVisuals) {
+        if (!popup.active) continue;
+        popup.life -= delta;
+        if (popup.life <= 0) {
+          popup.active = false;
+          world.scene.remove(popup.group);
+          continue;
+        }
+        const alpha = popup.life / popup.maxLife;
+        popup.group.position.y = popup.startPos.y + (1 - alpha) * 2;
+        popup.group.rotation.y += delta * 4;
+        popup.group.scale.setScalar(0.5 + alpha * 0.5);
+        popup.group.children.forEach(child => {
+          if (child instanceof Mesh) {
+            (child.material as MeshBasicMaterial).opacity = alpha * 0.9;
+          }
+        });
+      }
+      // Clean up dead popups
+      while (scorePopupVisuals.length > 0 && !scorePopupVisuals[0].active) {
+        scorePopupVisuals.shift();
+      }
     }
   }
 
@@ -2440,12 +2755,42 @@ async function main() {
   // START GAME
   // ============================================================
   function startGame() {
+    // Enforce skin unlock - if current skin is locked, revert to default
+    if (!game.unlockedSkins.has(game.currentSkin)) {
+      game.currentSkin = 0;
+    }
     game.resetGame();
     game.state = 'countdown';
     clearArena();
+    // Update ship mesh to match selected skin
+    updateShipSkin();
     shipGroup.visible = true;
     shipGroup.position.set(0, 1.5, 0);
     game.sessionStart = Date.now();
+  }
+
+  function updateShipSkin() {
+    const skin = SHIP_SKINS[game.currentSkin];
+    const color = new Color(skin.color);
+    const emissive = new Color(skin.emissive);
+    shipGroup.children.forEach(child => {
+      if (child instanceof Mesh) {
+        const mat = child.material;
+        if (child.name === 'shield') return;
+        if (child.name === 'engine') {
+          (mat as MeshBasicMaterial).color.copy(color);
+          return;
+        }
+        if (mat instanceof MeshStandardMaterial) {
+          mat.color.copy(color.clone().multiplyScalar(0.3));
+          mat.emissive.copy(emissive);
+        } else if (mat instanceof MeshBasicMaterial) {
+          mat.color.copy(color);
+        }
+      } else if (child instanceof LineSegments) {
+        (child.material as LineBasicMaterial).color.copy(color);
+      }
+    });
   }
 
   function clearArena() {

@@ -5,6 +5,7 @@
     .stat-text { fontSize: 11; color: #00aaaa; }
     .stat-row { flexDirection: row; gap: 12; }
     .new-hs { fontSize: 16; color: #ffdd00; fontWeight: bold; }
+    .rating { fontSize: 24; color: #ffaa00; fontWeight: bold; }
     .btn { fontSize: 14; color: #00ffff; backgroundColor: #002222; borderRadius: 4; padding: 6; width: 180; textAlign: center; cursor: pointer; }
     .mode-text { fontSize: 12; color: #ffaa00; }
     .diff-text { fontSize: 10; color: #888888; }
@@ -24,6 +25,7 @@
   </container>
   <text name="final-powerups" class="stat-text">Power-ups: 0</text>
   <text name="final-time" class="stat-text">Time: 0s</text>
+  <text name="final-rating" class="rating">Rating: C</text>
   <container flexDirection="row" gap="6">
     <text name="btn-retry" class="btn">Play Again</text>
     <text name="btn-menu" class="btn">Main Menu</text>

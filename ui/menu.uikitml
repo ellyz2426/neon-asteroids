@@ -6,6 +6,7 @@
     .stats-text { fontSize: 9; color: #666666; }
     .btn { fontSize: 14; color: #00ffff; backgroundColor: #002222; borderRadius: 4; padding: 6; width: 200; textAlign: center; cursor: pointer; }
     .btn-small { fontSize: 11; color: #00aaaa; backgroundColor: #001818; borderRadius: 3; padding: 4; width: 160; textAlign: center; cursor: pointer; }
+    .mode-desc { fontSize: 8; color: #006666; textAlign: center; }
     .help-text { fontSize: 10; color: #00aaaa; }
     .lb-text { fontSize: 10; color: #00cccc; }
     .back-btn { fontSize: 12; color: #ff6644; backgroundColor: #221100; borderRadius: 3; padding: 4; width: 120; textAlign: center; cursor: pointer; }
@@ -17,13 +18,19 @@
   <text name="high-score" class="hs-text">High Score: 0</text>
   <text name="stats" class="stats-text">Games: 0 | Kills: 0 | Best Lvl: 1</text>
 
-  <container name="main-buttons" flexDirection="column" alignItems="center" gap="4">
+  <container name="main-buttons" flexDirection="column" alignItems="center" gap="3">
     <text name="btn-classic" class="btn">Classic Mode</text>
+    <text class="mode-desc">Clear waves, progress through levels</text>
     <text name="btn-survival" class="btn">Survival Mode</text>
+    <text class="mode-desc">One life, escalating difficulty</text>
     <text name="btn-blitz" class="btn">Blitz Mode (60s)</text>
-    <text name="btn-zen" class="btn">Zen Mode (No Death)</text>
+    <text class="mode-desc">Score attack: 60 seconds on the clock</text>
+    <text name="btn-zen" class="btn">Zen Mode</text>
+    <text class="mode-desc">No death, just fly and destroy</text>
     <text name="btn-practice" class="btn">Practice</text>
+    <text class="mode-desc">Easy difficulty, learn the controls</text>
     <text name="btn-endless" class="btn">Endless Mode</text>
+    <text class="mode-desc">Non-stop spawning, survive as long as you can</text>
     <container flexDirection="row" gap="4">
       <text name="btn-achievements" class="btn-small">Achievements</text>
       <text name="btn-leaderboard" class="btn-small">Leaderboard</text>
@@ -34,22 +41,31 @@
     </container>
   </container>
 
-  <container name="help-panel" flexDirection="column" alignItems="center" gap="4" display="none">
+  <container name="help-panel" flexDirection="column" alignItems="center" gap="3" display="none">
     <text class="section-title">HOW TO PLAY</text>
-    <text class="help-text">WASD / Arrow Keys - Move ship</text>
-    <text class="help-text">Space / J - Fire</text>
-    <text class="help-text">P / Escape - Pause</text>
-    <text class="help-text">Q (while paused) - Quit to menu</text>
+    <text class="help-text">WASD / Arrows - Move ship</text>
+    <text class="help-text">Space / J - Fire weapons</text>
+    <text class="help-text">P / Escape - Pause game</text>
     <text class="help-text">---</text>
-    <text class="help-text">VR: Left Stick - Turn/Thrust</text>
-    <text class="help-text">VR: Left Trigger - Thrust</text>
+    <text class="help-text">VR: Left Stick - Turn and Thrust</text>
+    <text class="help-text">VR: Left Trigger - Thrust forward</text>
     <text class="help-text">VR: Right Trigger - Fire</text>
     <text class="help-text">VR: B Button - Pause</text>
     <text class="help-text">---</text>
-    <text class="help-text">Destroy asteroids for points!</text>
-    <text class="help-text">Large -> Medium -> Small</text>
-    <text class="help-text">Collect power-ups for bonuses</text>
-    <text class="help-text">Build combos for score multiplier</text>
+    <text class="help-text">Destroy asteroids: Large > Med > Small</text>
+    <text class="help-text">Build combos for score multiplier!</text>
+    <text class="help-text">Weapon upgrades every 20 kills</text>
+    <text class="help-text">Boss appears every 5 levels</text>
+    <text class="help-text">--- POWER-UPS ---</text>
+    <text class="help-text">Shield - Absorb one hit</text>
+    <text class="help-text">Rapid Fire - Faster shooting</text>
+    <text class="help-text">Spread Shot - Triple bullets</text>
+    <text class="help-text">Piercing - Bullets pass through</text>
+    <text class="help-text">Slow Motion - Time slows down</text>
+    <text class="help-text">Smart Bomb - Clear all asteroids</text>
+    <text class="help-text">Homing - Bullets track targets</text>
+    <text class="help-text">Double Score - 2x points!</text>
+    <text class="help-text">Extra Life - +1 life</text>
     <text name="btn-back-menu" class="back-btn">Back</text>
   </container>
 
